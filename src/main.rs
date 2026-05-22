@@ -101,21 +101,7 @@ fn main() -> Result<()> {
             println!("current session: {} {}", session.id, session.goal);
         }
         Command::Status => {
-            let vcs = vcs::detect(&cwd);
-            println!("vcs: {}", vcs_kind(&vcs));
-            match Store::discover(&cwd) {
-                Ok(store) => {
-                    match store.current_session() {
-                        Ok(session) => println!("current session: {} {}", session.id, session.goal),
-                        Err(_) => println!("current session: none"),
-                    }
-                    match store.latest_session() {
-                        Ok(session) => println!("latest session: {} {}", session.id, session.goal),
-                        Err(_) => println!("latest session: none"),
-                    }
-                }
-                Err(_) => println!("atrace: not initialized"),
-            }
+            print_status(&cwd)?;
         }
         Command::Log {
             session,
@@ -190,6 +176,105 @@ fn vcs_kind(v: &model::VcsInfo) -> &'static str {
         model::VcsInfo::Jj { .. } => "jj",
         model::VcsInfo::Git { .. } => "git",
         model::VcsInfo::None => "none",
+    }
+}
+
+fn print_status(cwd: &std::path::Path) -> Result<()> {
+    let store = Store::discover(cwd).ok();
+    println!(
+        "atrace: {}",
+        if store.is_some() {
+            "initialized"
+        } else {
+            "not initialized"
+        }
+    );
+
+    if let Some(store) = &store {
+        match store.current_session() {
+            Ok(session) => println!(
+                "current session: {} ticket={} goal={}",
+                session.id,
+                session.ticket.as_deref().unwrap_or("none"),
+                session.goal
+            ),
+            Err(_) => println!("current session: none"),
+        }
+        if let Ok(latest) = store.latest_session() {
+            let current_id = store.current_session_id()?.unwrap_or_default();
+            if latest.id != current_id {
+                println!(
+                    "latest session: {} ticket={} goal={}",
+                    latest.id,
+                    latest.ticket.as_deref().unwrap_or("none"),
+                    latest.goal
+                );
+            }
+        }
+        match store.latest_turn()? {
+            Some(turn) => println!(
+                "last turn: {} session={} summary={}",
+                turn.id,
+                turn.session,
+                turn.summary.as_deref().unwrap_or("")
+            ),
+            None => println!("last turn: none"),
+        }
+    }
+
+    let vcs = vcs::detect(cwd);
+    print_vcs_status(&vcs);
+    Ok(())
+}
+
+fn print_vcs_status(vcs: &model::VcsInfo) {
+    println!("vcs: {}", vcs_kind(vcs));
+    match vcs {
+        model::VcsInfo::Jj {
+            jj_change,
+            jj_commit,
+            jj_operation,
+            git_head,
+            git_branch,
+            dirty,
+            changed_files,
+        } => {
+            println!("jj change: {}", jj_change.as_deref().unwrap_or("unknown"));
+            println!("jj commit: {}", jj_commit.as_deref().unwrap_or("unknown"));
+            println!(
+                "jj operation: {}",
+                jj_operation.as_deref().unwrap_or("unknown")
+            );
+            print_git_bits(git_head.as_deref(), git_branch.as_deref());
+            print_dirty(*dirty, changed_files);
+        }
+        model::VcsInfo::Git {
+            git_head,
+            git_branch,
+            dirty,
+            changed_files,
+        } => {
+            print_git_bits(git_head.as_deref(), git_branch.as_deref());
+            print_dirty(*dirty, changed_files);
+        }
+        model::VcsInfo::None => {}
+    }
+}
+
+fn print_git_bits(git_head: Option<&str>, git_branch: Option<&str>) {
+    println!("git branch: {}", git_branch.unwrap_or("none"));
+    println!("git head: {}", git_head.unwrap_or("none"));
+}
+
+fn print_dirty(dirty: bool, changed_files: &[String]) {
+    println!("dirty: {}", dirty);
+    if changed_files.is_empty() {
+        println!("changed files: none");
+    } else {
+        println!("changed files:");
+        for file in changed_files {
+            println!("  - {file}");
+        }
     }
 }
 

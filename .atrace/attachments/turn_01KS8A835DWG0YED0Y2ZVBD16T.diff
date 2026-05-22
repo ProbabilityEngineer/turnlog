@@ -1,0 +1,309 @@
+diff --git a/.atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff b/.atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff
+new file mode 100644
+index 0000000000..cf8f65ca51
+--- /dev/null
++++ b/.atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff
+@@ -0,0 +1,24 @@
++diff --git a/.tickets/atr-cjfx.md b/.tickets/atr-cjfx.md
++new file mode 100644
++index 0000000000..1b085a74b8
++--- /dev/null
+++++ b/.tickets/atr-cjfx.md
++@@ -0,0 +1,18 @@
+++---
+++id: atr-cjfx
+++status: in_progress
+++deps: []
+++links: []
+++created: 2026-05-22T17:02:05Z
+++type: feature
+++priority: 1
+++assignee: ProbabilityEngineer
+++---
+++# Improve atrace status
+++
+++Make atrace status a useful current-context summary for humans and agents.
+++
+++## Acceptance Criteria
+++
+++Status shows initialized/not initialized, current session, latest session if different, last turn, VCS kind/IDs, dirty state, and changed files; works in jj, Git-only, and non-VCS dirs.
+++
+\ No newline at end of file
+diff --git a/.atrace/index.jsonl b/.atrace/index.jsonl
+index d84e9e2d84..6709cb3f68 100644
+--- a/.atrace/index.jsonl
++++ b/.atrace/index.jsonl
+@@ -8,3 +8,4 @@
+ {"type":"turn_recorded","turn":{"schema_version":1,"id":"turn_01KS894B13VH1FPRJ6RYA66GB6","session":"sess_01KS88A0SREQVMXT2VB2A1978V","created_at":"2026-05-22T16:43:37.379632Z","model":"claude-sonnet-4-5","summary":"Implemented trace navigation: session rollups, JSON show, log filters, grep, and tests","verification":["cargo test","cargo build --release"],"vcs":{"kind":"jj","jj_change":"vvwtlstqnyno","jj_commit":"0de134868d6d","jj_operation":"654912e3c9fe","git_head":"cd767f85181950d3789df4c6cafdf47ac258856e","git_branch":"main","dirty":true,"changed_files":[".tickets/atr-1pdf.md",".tickets/atr-2prg.md",".tickets/atr-avlx.md",".tickets/atr-bfjo.md",".tickets/atr-hetm.md","README.md","src/cli.rs","src/main.rs","src/store.rs"]}}}
+ {"type":"turn_recorded","turn":{"schema_version":1,"id":"turn_01KS89G6QHFF6HCDT1FE698QD0","session":"sess_01KS88A0SREQVMXT2VB2A1978V","created_at":"2026-05-22T16:50:06.19368Z","model":"claude-sonnet-4-5","summary":"Added active session support","verification":["cargo test","cargo build --release"],"vcs":{"kind":"jj","jj_change":"vwtwwloymwzk","jj_commit":"bcdaf5e63596","jj_operation":"153f56d2f544","git_head":"a141f412e3ddd99a00d5dc54c5c8a01e8948d1da","git_branch":"main","dirty":true,"changed_files":[".atrace/current-session",".tickets/atr-348k.md",".tickets/atr-8iar.md",".tickets/atr-8or8.md",".tickets/atr-btkw.md",".tickets/atr-g1b5.md",".tickets/atr-ysb8.md","src/cli.rs","src/main.rs","src/store.rs"]}}}
+ {"type":"turn_recorded","turn":{"schema_version":1,"id":"turn_01KS8A07PBFE6HSM7H7CH3R22A","session":"sess_01KS88A0SREQVMXT2VB2A1978V","created_at":"2026-05-22T16:58:51.490801Z","model":"claude-sonnet-4-5","summary":"Added diff attachment support","verification":["cargo test","cargo build --release"],"attachments":[{"kind":"diff","path":".atrace/attachments/turn_01KS8A07PBFE6HSM7H7CH3R22A.diff"}],"vcs":{"kind":"jj","jj_change":"yrsntsvuwkyx","jj_commit":"80dc425d7ef2","jj_operation":"f71963fd1604","git_head":"10fd6270cf9a857773f0ec8b993bed5cc3d52696","git_branch":"main","dirty":true,"changed_files":[".atrace/attachments/turn_01KS8A07PBFE6HSM7H7CH3R22A.diff",".tickets/atr-dglq.md","README.md","src/cli.rs","src/main.rs","src/model.rs","src/store.rs","src/vcs.rs"]}}}
++{"type":"turn_recorded","turn":{"schema_version":1,"id":"turn_01KS8A68ZRC4322AG9AKX5AQXP","session":"sess_01KS88A0SREQVMXT2VB2A1978V","created_at":"2026-05-22T17:02:09.465502Z","model":"claude-sonnet-4-5","summary":"Started status improvement work","verification":["ticket atr-cjfx started"],"attachments":[{"kind":"diff","path":".atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff"}],"vcs":{"kind":"jj","jj_change":"zwwlxuwollut","jj_commit":"958885caef90","jj_operation":"5b948bce2468","git_head":"075f36c2a3326eea37a157bf32bd9c521aeac76e","git_branch":"main","dirty":true,"changed_files":[".atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff",".tickets/atr-cjfx.md"]}}}
+diff --git a/.atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.json b/.atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.json
+new file mode 100644
+index 0000000000..51af12f850
+--- /dev/null
++++ b/.atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.json
+@@ -0,0 +1,30 @@
++{
++  "schema_version": 1,
++  "id": "turn_01KS8A68ZRC4322AG9AKX5AQXP",
++  "session": "sess_01KS88A0SREQVMXT2VB2A1978V",
++  "created_at": "2026-05-22T17:02:09.465502Z",
++  "model": "claude-sonnet-4-5",
++  "summary": "Started status improvement work",
++  "verification": [
++    "ticket atr-cjfx started"
++  ],
++  "attachments": [
++    {
++      "kind": "diff",
++      "path": ".atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff"
++    }
++  ],
++  "vcs": {
++    "kind": "jj",
++    "jj_change": "zwwlxuwollut",
++    "jj_commit": "958885caef90",
++    "jj_operation": "5b948bce2468",
++    "git_head": "075f36c2a3326eea37a157bf32bd9c521aeac76e",
++    "git_branch": "main",
++    "dirty": true,
++    "changed_files": [
++      ".atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff",
++      ".tickets/atr-cjfx.md"
++    ]
++  }
++}
+\ No newline at end of file
+diff --git a/.atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.md b/.atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.md
+new file mode 100644
+index 0000000000..f4b415195b
+--- /dev/null
++++ b/.atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.md
+@@ -0,0 +1,32 @@
++# Turn turn_01KS8A68ZRC4322AG9AKX5AQXP
++
++Session: sess_01KS88A0SREQVMXT2VB2A1978V  
++Model: claude-sonnet-4-5  
++Summary: Started status improvement work  
++Created: 2026-05-22T17:02:09.465502Z
++
++## Verification
++
++- `ticket atr-cjfx started`
++
++## Attachments
++
++- Diff: `.atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff`
++
++## VCS
++
++```json
++{
++  "kind": "jj",
++  "jj_change": "zwwlxuwollut",
++  "jj_commit": "958885caef90",
++  "jj_operation": "5b948bce2468",
++  "git_head": "075f36c2a3326eea37a157bf32bd9c521aeac76e",
++  "git_branch": "main",
++  "dirty": true,
++  "changed_files": [
++    ".atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff",
++    ".tickets/atr-cjfx.md"
++  ]
++}
++```
+diff --git a/.tickets/atr-cjfx.md b/.tickets/atr-cjfx.md
+new file mode 100644
+index 0000000000..1b085a74b8
+--- /dev/null
++++ b/.tickets/atr-cjfx.md
+@@ -0,0 +1,18 @@
++---
++id: atr-cjfx
++status: in_progress
++deps: []
++links: []
++created: 2026-05-22T17:02:05Z
++type: feature
++priority: 1
++assignee: ProbabilityEngineer
++---
++# Improve atrace status
++
++Make atrace status a useful current-context summary for humans and agents.
++
++## Acceptance Criteria
++
++Status shows initialized/not initialized, current session, latest session if different, last turn, VCS kind/IDs, dirty state, and changed files; works in jj, Git-only, and non-VCS dirs.
++
+diff --git a/src/main.rs b/src/main.rs
+index f9b64293fe..a7e7462137 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -101,21 +101,7 @@
+             println!("current session: {} {}", session.id, session.goal);
+         }
+         Command::Status => {
+-            let vcs = vcs::detect(&cwd);
+-            println!("vcs: {}", vcs_kind(&vcs));
+-            match Store::discover(&cwd) {
+-                Ok(store) => {
+-                    match store.current_session() {
+-                        Ok(session) => println!("current session: {} {}", session.id, session.goal),
+-                        Err(_) => println!("current session: none"),
+-                    }
+-                    match store.latest_session() {
+-                        Ok(session) => println!("latest session: {} {}", session.id, session.goal),
+-                        Err(_) => println!("latest session: none"),
+-                    }
+-                }
+-                Err(_) => println!("atrace: not initialized"),
+-            }
++            print_status(&cwd)?;
+         }
+         Command::Log {
+             session,
+@@ -193,6 +179,105 @@
+     }
+ }
+ 
++fn print_status(cwd: &std::path::Path) -> Result<()> {
++    let store = Store::discover(cwd).ok();
++    println!(
++        "atrace: {}",
++        if store.is_some() {
++            "initialized"
++        } else {
++            "not initialized"
++        }
++    );
++
++    if let Some(store) = &store {
++        match store.current_session() {
++            Ok(session) => println!(
++                "current session: {} ticket={} goal={}",
++                session.id,
++                session.ticket.as_deref().unwrap_or("none"),
++                session.goal
++            ),
++            Err(_) => println!("current session: none"),
++        }
++        if let Ok(latest) = store.latest_session() {
++            let current_id = store.current_session_id()?.unwrap_or_default();
++            if latest.id != current_id {
++                println!(
++                    "latest session: {} ticket={} goal={}",
++                    latest.id,
++                    latest.ticket.as_deref().unwrap_or("none"),
++                    latest.goal
++                );
++            }
++        }
++        match store.latest_turn()? {
++            Some(turn) => println!(
++                "last turn: {} session={} summary={}",
++                turn.id,
++                turn.session,
++                turn.summary.as_deref().unwrap_or("")
++            ),
++            None => println!("last turn: none"),
++        }
++    }
++
++    let vcs = vcs::detect(cwd);
++    print_vcs_status(&vcs);
++    Ok(())
++}
++
++fn print_vcs_status(vcs: &model::VcsInfo) {
++    println!("vcs: {}", vcs_kind(vcs));
++    match vcs {
++        model::VcsInfo::Jj {
++            jj_change,
++            jj_commit,
++            jj_operation,
++            git_head,
++            git_branch,
++            dirty,
++            changed_files,
++        } => {
++            println!("jj change: {}", jj_change.as_deref().unwrap_or("unknown"));
++            println!("jj commit: {}", jj_commit.as_deref().unwrap_or("unknown"));
++            println!(
++                "jj operation: {}",
++                jj_operation.as_deref().unwrap_or("unknown")
++            );
++            print_git_bits(git_head.as_deref(), git_branch.as_deref());
++            print_dirty(*dirty, changed_files);
++        }
++        model::VcsInfo::Git {
++            git_head,
++            git_branch,
++            dirty,
++            changed_files,
++        } => {
++            print_git_bits(git_head.as_deref(), git_branch.as_deref());
++            print_dirty(*dirty, changed_files);
++        }
++        model::VcsInfo::None => {}
++    }
++}
++
++fn print_git_bits(git_head: Option<&str>, git_branch: Option<&str>) {
++    println!("git branch: {}", git_branch.unwrap_or("none"));
++    println!("git head: {}", git_head.unwrap_or("none"));
++}
++
++fn print_dirty(dirty: bool, changed_files: &[String]) {
++    println!("dirty: {}", dirty);
++    if changed_files.is_empty() {
++        println!("changed files: none");
++    } else {
++        println!("changed files:");
++        for file in changed_files {
++            println!("  - {file}");
++        }
++    }
++}
++
+ fn print_event_summary(event: &Event) {
+     match event {
+         Event::SessionStarted { session } => {
+diff --git a/src/store.rs b/src/store.rs
+index 20c8d581eb..f2ef85af05 100644
+--- a/src/store.rs
++++ b/src/store.rs
+@@ -155,6 +155,17 @@
+             .collect())
+     }
+ 
++    pub fn latest_turn(&self) -> Result<Option<Turn>> {
++        Ok(self
++            .events()?
++            .into_iter()
++            .filter_map(|event| match event {
++                Event::TurnRecorded { turn } => Some(turn),
++                _ => None,
++            })
++            .last())
++    }
++
+     pub fn render_session_rollup(&self, session: &Session) -> Result<String> {
+         let turns = self.turns_for_session(&session.id)?;
+         Ok(render_session_rollup(session, &turns))
+diff --git a/src/vcs.rs b/src/vcs.rs
+index 115bab131c..acf93570db 100644
+--- a/src/vcs.rs
++++ b/src/vcs.rs
+@@ -119,8 +119,8 @@
+         return vec![];
+     };
+     raw.lines()
+-        .filter_map(|line| line.get(3..).map(str::trim))
++        .filter_map(|line| line.get(2..).map(str::trim))
+         .filter(|s| !s.is_empty())
+-        .map(ToOwned::to_owned)
++        .map(|s| s.split(" -> ").last().unwrap_or(s).to_string())
+         .collect()
+ }

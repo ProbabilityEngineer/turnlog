@@ -1,0 +1,40 @@
+# Turn turn_01KS8A835DWG0YED0Y2ZVBD16T
+
+Session: sess_01KS88A0SREQVMXT2VB2A1978V  
+Model: claude-sonnet-4-5  
+Summary: Improved atrace status output  
+Created: 2026-05-22T17:03:09.003702Z
+
+## Verification
+
+- `cargo test`
+- `cargo build --release`
+
+## Attachments
+
+- Diff: `.atrace/attachments/turn_01KS8A835DWG0YED0Y2ZVBD16T.diff`
+
+## VCS
+
+```json
+{
+  "kind": "jj",
+  "jj_change": "zwwlxuwollut",
+  "jj_commit": "0566ca7b56e4",
+  "jj_operation": "f1b41bf15778",
+  "git_head": "075f36c2a3326eea37a157bf32bd9c521aeac76e",
+  "git_branch": "main",
+  "dirty": true,
+  "changed_files": [
+    ".atrace/attachments/turn_01KS8A68ZRC4322AG9AKX5AQXP.diff",
+    ".atrace/attachments/turn_01KS8A835DWG0YED0Y2ZVBD16T.diff",
+    ".atrace/index.jsonl",
+    ".atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.json",
+    ".atrace/turns/turn_01KS8A68ZRC4322AG9AKX5AQXP.md",
+    ".tickets/atr-cjfx.md",
+    "src/main.rs",
+    "src/store.rs",
+    "src/vcs.rs"
+  ]
+}
+```

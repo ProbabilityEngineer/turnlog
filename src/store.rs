@@ -155,6 +155,17 @@ impl Store {
             .collect())
     }
 
+    pub fn latest_turn(&self) -> Result<Option<Turn>> {
+        Ok(self
+            .events()?
+            .into_iter()
+            .filter_map(|event| match event {
+                Event::TurnRecorded { turn } => Some(turn),
+                _ => None,
+            })
+            .last())
+    }
+
     pub fn render_session_rollup(&self, session: &Session) -> Result<String> {
         let turns = self.turns_for_session(&session.id)?;
         Ok(render_session_rollup(session, &turns))

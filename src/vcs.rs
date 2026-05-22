@@ -119,8 +119,8 @@ fn git_changed_files(cwd: &Path) -> Vec<String> {
         return vec![];
     };
     raw.lines()
-        .filter_map(|line| line.get(3..).map(str::trim))
+        .filter_map(|line| line.get(2..).map(str::trim))
         .filter(|s| !s.is_empty())
-        .map(ToOwned::to_owned)
+        .map(|s| s.split(" -> ").last().unwrap_or(s).to_string())
         .collect()
 }
