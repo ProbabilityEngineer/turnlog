@@ -92,6 +92,36 @@ impl Store {
         latest.context("no session found; run `atrace start`")
     }
 
+    pub fn set_current_session(&self, session_id: &str) -> Result<()> {
+        fs::write(self.root.join("current-session"), format!("{session_id}\n"))?;
+        Ok(())
+    }
+
+    pub fn current_session_id(&self) -> Result<Option<String>> {
+        let path = self.root.join("current-session");
+        if !path.exists() {
+            return Ok(None);
+        }
+        let id = fs::read_to_string(path)?.trim().to_string();
+        Ok((!id.is_empty()).then_some(id))
+    }
+
+    pub fn current_session(&self) -> Result<Session> {
+        let id = self
+            .current_session_id()?
+            .context("no active session; run `atrace start` or `atrace use <session-id>`")?;
+        self.session_by_id(&id)?.with_context(|| {
+            format!("active session {id} was not found; run `atrace use <session-id>`")
+        })
+    }
+
+    pub fn session_by_id(&self, id: &str) -> Result<Option<Session>> {
+        Ok(self.events()?.into_iter().find_map(|event| match event {
+            Event::SessionStarted { session } if session.id == id => Some(session),
+            _ => None,
+        }))
+    }
+
     pub fn events(&self) -> Result<Vec<Event>> {
         let path = self.root.join("index.jsonl");
         let raw = fs::read_to_string(path)?;
@@ -211,5 +241,18 @@ mod tests {
         assert!(dir.path().join(".atrace/index.jsonl").exists());
         assert!(dir.path().join(".atrace/sessions").is_dir());
         assert!(dir.path().join(".atrace/turns").is_dir());
+    }
+
+    #[test]
+    fn current_session_marker_round_trips() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        assert_eq!(store.current_session_id().unwrap(), None);
+        store.set_current_session("sess_test").unwrap();
+        assert_eq!(
+            store.current_session_id().unwrap().as_deref(),
+            Some("sess_test")
+        );
     }
 }

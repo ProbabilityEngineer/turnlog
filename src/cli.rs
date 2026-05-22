@@ -25,12 +25,18 @@ pub enum Command {
     /// Record an agent turn on the latest session
     Record {
         #[arg(long)]
+        session: Option<String>,
+        #[arg(long)]
         model: Option<String>,
         #[arg(long)]
         summary: Option<String>,
         #[arg(long = "verification")]
         verification: Vec<String>,
     },
+    /// Show the active session
+    Current,
+    /// Set the active session
+    Use { id: String },
     /// Show current atrace and VCS status
     Status,
     /// List trace events

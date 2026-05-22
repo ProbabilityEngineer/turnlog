@@ -25,7 +25,10 @@ cargo build
 ```bash
 atrace init
 atrace start --ticket AUTH-123 --goal "Fix auth token validation"
+atrace current
+atrace use <session-id>
 atrace record --model claude-sonnet-4-5 --summary "Updated token validation" --verification "cargo test auth"
+atrace record --session <session-id> --summary "Explicit session record"
 atrace status
 atrace log
 atrace log --ticket AUTH-123

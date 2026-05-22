@@ -35,15 +35,22 @@ fn main() -> Result<()> {
                 vcs_start: vcs::detect(&cwd),
             };
             store.write_session(&session)?;
+            store.set_current_session(&session.id)?;
             println!("started {}", session.id);
         }
         Command::Record {
+            session,
             model,
             summary,
             verification,
         } => {
             let store = Store::discover(&cwd)?;
-            let session = store.latest_session()?;
+            let session = match session {
+                Some(id) => store
+                    .session_by_id(&id)?
+                    .ok_or_else(|| anyhow::anyhow!("session not found: {id}"))?,
+                None => store.current_session()?,
+            };
             let turn = Turn {
                 schema_version: SCHEMA_VERSION,
                 id: ids::turn_id(),
@@ -57,14 +64,38 @@ fn main() -> Result<()> {
             store.write_turn(&turn)?;
             println!("recorded {}", turn.id);
         }
+        Command::Current => {
+            let store = Store::discover(&cwd)?;
+            let session = store.current_session()?;
+            println!(
+                "current session: {} ticket={} goal={}",
+                session.id,
+                session.ticket.as_deref().unwrap_or("none"),
+                session.goal
+            );
+        }
+        Command::Use { id } => {
+            let store = Store::discover(&cwd)?;
+            let session = store
+                .session_by_id(&id)?
+                .ok_or_else(|| anyhow::anyhow!("session not found: {id}"))?;
+            store.set_current_session(&session.id)?;
+            println!("current session: {} {}", session.id, session.goal);
+        }
         Command::Status => {
             let vcs = vcs::detect(&cwd);
             println!("vcs: {}", vcs_kind(&vcs));
             match Store::discover(&cwd) {
-                Ok(store) => match store.latest_session() {
-                    Ok(session) => println!("latest session: {} {}", session.id, session.goal),
-                    Err(_) => println!("latest session: none"),
-                },
+                Ok(store) => {
+                    match store.current_session() {
+                        Ok(session) => println!("current session: {} {}", session.id, session.goal),
+                        Err(_) => println!("current session: none"),
+                    }
+                    match store.latest_session() {
+                        Ok(session) => println!("latest session: {} {}", session.id, session.goal),
+                        Err(_) => println!("latest session: none"),
+                    }
+                }
                 Err(_) => println!("atrace: not initialized"),
             }
         }
