@@ -45,6 +45,8 @@ turnlog grep "cargo test"
 
 ## Storage
 
+`turnlog init` adds `.turnlog/` to `.gitignore` when missing, keeping local provenance out of GitHub by default.
+
 `turnlog` writes human-reviewable files under `.turnlog/`:
 
 ```text

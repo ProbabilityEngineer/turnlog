@@ -38,6 +38,34 @@ impl Store {
         if !self.root.join("index.jsonl").exists() {
             fs::write(self.root.join("index.jsonl"), "")?;
         }
+        self.ensure_gitignored()?;
+        Ok(())
+    }
+
+    fn ensure_gitignored(&self) -> Result<()> {
+        let repo_root = self.root.parent().unwrap_or(&self.root);
+        let gitignore = repo_root.join(".gitignore");
+        let existing = match fs::read_to_string(&gitignore) {
+            Ok(raw) => raw,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(error) => {
+                return Err(error).with_context(|| format!("read {}", gitignore.display()));
+            }
+        };
+        if existing
+            .lines()
+            .map(str::trim)
+            .any(|line| line == ".turnlog" || line == ".turnlog/")
+        {
+            return Ok(());
+        }
+        let separator = if existing.is_empty() || existing.ends_with('\n') {
+            ""
+        } else {
+            "\n"
+        };
+        fs::write(&gitignore, format!("{existing}{separator}.turnlog/\n"))
+            .with_context(|| format!("write {}", gitignore.display()))?;
         Ok(())
     }
 
@@ -286,6 +314,27 @@ mod tests {
         assert!(dir.path().join(".turnlog/sessions").is_dir());
         assert!(dir.path().join(".turnlog/turns").is_dir());
         assert!(dir.path().join(".turnlog/reports").is_dir());
+        assert!(
+            fs::read_to_string(dir.path().join(".gitignore"))
+                .unwrap()
+                .lines()
+                .any(|line| line == ".turnlog/")
+        );
+    }
+
+    #[test]
+    fn init_does_not_duplicate_gitignore_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join(".gitignore"), "target/\n.turnlog\n").unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        store.init().unwrap();
+        let gitignore = fs::read_to_string(dir.path().join(".gitignore")).unwrap();
+        let count = gitignore
+            .lines()
+            .filter(|line| matches!(line.trim(), ".turnlog" | ".turnlog/"))
+            .count();
+        assert_eq!(count, 1);
     }
 
     #[test]
