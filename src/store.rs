@@ -1,4 +1,4 @@
-use crate::model::{Event, Session, Turn};
+use crate::model::{Attachment, Event, Session, Turn};
 use anyhow::{Context, Result, bail};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
@@ -80,6 +80,15 @@ impl Store {
             render_turn(turn),
         )?;
         self.append_event(&Event::TurnRecorded { turn: turn.clone() })
+    }
+
+    pub fn write_attachment(&self, path: &str, content: &str) -> Result<()> {
+        let full_path = self.root.parent().unwrap_or(&self.root).join(path);
+        if let Some(parent) = full_path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        fs::write(full_path, content)?;
+        Ok(())
     }
 
     pub fn latest_session(&self) -> Result<Session> {
@@ -173,13 +182,14 @@ fn render_session(s: &Session) -> String {
 fn render_turn(t: &Turn) -> String {
     let verification = verification_markdown(&t.verification);
     format!(
-        "# Turn {}\n\nSession: {}  \nModel: {}  \nSummary: {}  \nCreated: {}\n\n## Verification\n\n{}\n## VCS\n\n```json\n{}\n```\n",
+        "# Turn {}\n\nSession: {}  \nModel: {}  \nSummary: {}  \nCreated: {}\n\n## Verification\n\n{}\n## Attachments\n\n{}\n## VCS\n\n```json\n{}\n```\n",
         t.id,
         t.session,
         t.model.as_deref().unwrap_or("unknown"),
         t.summary.as_deref().unwrap_or(""),
         format_time(&t.created_at),
         verification,
+        attachments_markdown(&t.attachments),
         serde_json::to_string_pretty(&t.vcs).unwrap_or_default()
     )
 }
@@ -201,6 +211,8 @@ fn render_session_rollup(session: &Session, turns: &[Turn]) -> String {
             verification_markdown(&turn.verification)
         ));
         let files = changed_files(&turn.vcs);
+        out.push_str("\nAttachments:\n");
+        out.push_str(&attachments_markdown(&turn.attachments));
         out.push_str("\nChanged files:\n");
         if files.is_empty() {
             out.push_str("- none\n\n");
@@ -219,6 +231,17 @@ fn verification_markdown(verification: &[String]) -> String {
         "- none\n".to_string()
     } else {
         verification.iter().map(|v| format!("- `{v}`\n")).collect()
+    }
+}
+
+fn attachments_markdown(attachments: &[Attachment]) -> String {
+    if attachments.is_empty() {
+        "- none\n".to_string()
+    } else {
+        attachments
+            .iter()
+            .map(|a| format!("- {:?}: `{}`\n", a.kind, a.path))
+            .collect()
     }
 }
 

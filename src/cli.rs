@@ -32,6 +32,8 @@ pub enum Command {
         summary: Option<String>,
         #[arg(long = "verification")]
         verification: Vec<String>,
+        #[arg(long)]
+        attach_diff: bool,
     },
     /// Show the active session
     Current,

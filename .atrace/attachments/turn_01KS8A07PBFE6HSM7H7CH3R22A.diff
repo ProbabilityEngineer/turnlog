@@ -1,0 +1,230 @@
+diff --git a/.tickets/atr-dglq.md b/.tickets/atr-dglq.md
+new file mode 100644
+index 0000000000..034a248a9d
+--- /dev/null
++++ b/.tickets/atr-dglq.md
+@@ -0,0 +1,18 @@
++---
++id: atr-dglq
++status: open
++deps: []
++links: []
++created: 2026-05-22T16:57:13Z
++type: feature
++priority: 1
++assignee: ProbabilityEngineer
++---
++# Add diff attachments
++
++Allow atrace record to attach the current jj/git diff to a turn.
++
++## Acceptance Criteria
++
++atrace record --attach-diff writes .atrace/attachments/<turn-id>.diff; jj repos use jj diff --git; Git repos use git diff; turn JSON records the attachment path; no-VCS dirs skip with a clear note.
++
+diff --git a/README.md b/README.md
+index fbf51e42bd..075604c85e 100644
+--- a/README.md
++++ b/README.md
+@@ -28,6 +28,7 @@
+ atrace current
+ atrace use <session-id>
+ atrace record --model claude-sonnet-4-5 --summary "Updated token validation" --verification "cargo test auth"
++atrace record --attach-diff --summary "Record with patch snapshot"
+ atrace record --session <session-id> --summary "Explicit session record"
+ atrace status
+ atrace log
+diff --git a/src/cli.rs b/src/cli.rs
+index ec8e5ca273..d661e538de 100644
+--- a/src/cli.rs
++++ b/src/cli.rs
+@@ -32,6 +32,8 @@
+         summary: Option<String>,
+         #[arg(long = "verification")]
+         verification: Vec<String>,
++        #[arg(long)]
++        attach_diff: bool,
+     },
+     /// Show the active session
+     Current,
+diff --git a/src/main.rs b/src/main.rs
+index 36effd637b..f9b64293fe 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -7,7 +7,7 @@
+ use anyhow::Result;
+ use clap::Parser;
+ use cli::{Cli, Command};
+-use model::{Event, SCHEMA_VERSION, Session, Turn};
++use model::{Attachment, AttachmentKind, Event, SCHEMA_VERSION, Session, Turn};
+ use store::Store;
+ use time::OffsetDateTime;
+ 
+@@ -43,6 +43,7 @@
+             model,
+             summary,
+             verification,
++            attach_diff,
+         } => {
+             let store = Store::discover(&cwd)?;
+             let session = match session {
+@@ -51,14 +52,31 @@
+                     .ok_or_else(|| anyhow::anyhow!("session not found: {id}"))?,
+                 None => store.current_session()?,
+             };
++            let turn_id = ids::turn_id();
++            let mut attachments = Vec::new();
++            if attach_diff {
++                match vcs::diff(&cwd) {
++                    Some(diff) if !diff.is_empty() => {
++                        let path = format!(".atrace/attachments/{turn_id}.diff");
++                        store.write_attachment(&path, &diff)?;
++                        attachments.push(Attachment {
++                            kind: AttachmentKind::Diff,
++                            path,
++                        });
++                    }
++                    Some(_) => eprintln!("no diff to attach"),
++                    None => eprintln!("no VCS diff available; skipping diff attachment"),
++                }
++            }
+             let turn = Turn {
+                 schema_version: SCHEMA_VERSION,
+-                id: ids::turn_id(),
++                id: turn_id,
+                 session: session.id,
+                 created_at: OffsetDateTime::now_utc(),
+                 model,
+                 summary,
+                 verification,
++                attachments,
+                 vcs: vcs::detect(&cwd),
+             };
+             store.write_turn(&turn)?;
+@@ -262,6 +280,7 @@
+                 model: Some("model".to_string()),
+                 summary: Some("fixed timestamp rendering".to_string()),
+                 verification: vec!["cargo test".to_string()],
++                attachments: vec![],
+                 vcs: model::VcsInfo::Git {
+                     git_head: Some("abc".to_string()),
+                     git_branch: Some("main".to_string()),
+diff --git a/src/model.rs b/src/model.rs
+index 80cb2f4153..202e1f74c3 100644
+--- a/src/model.rs
++++ b/src/model.rs
+@@ -25,10 +25,24 @@
+     pub model: Option<String>,
+     pub summary: Option<String>,
+     pub verification: Vec<String>,
++    #[serde(default)]
++    pub attachments: Vec<Attachment>,
+     pub vcs: VcsInfo,
+ }
+ 
+ #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++pub struct Attachment {
++    pub kind: AttachmentKind,
++    pub path: String,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
++#[serde(rename_all = "snake_case")]
++pub enum AttachmentKind {
++    Diff,
++}
++
++#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+ #[serde(tag = "kind", rename_all = "snake_case")]
+ pub enum VcsInfo {
+     Jj {
+diff --git a/src/store.rs b/src/store.rs
+index 1e2e2474c2..20c8d581eb 100644
+--- a/src/store.rs
++++ b/src/store.rs
+@@ -1,4 +1,4 @@
+-use crate::model::{Event, Session, Turn};
++use crate::model::{Attachment, Event, Session, Turn};
+ use anyhow::{Context, Result, bail};
+ use std::fs::{self, OpenOptions};
+ use std::io::Write;
+@@ -82,6 +82,15 @@
+         self.append_event(&Event::TurnRecorded { turn: turn.clone() })
+     }
+ 
++    pub fn write_attachment(&self, path: &str, content: &str) -> Result<()> {
++        let full_path = self.root.parent().unwrap_or(&self.root).join(path);
++        if let Some(parent) = full_path.parent() {
++            fs::create_dir_all(parent)?;
++        }
++        fs::write(full_path, content)?;
++        Ok(())
++    }
++
+     pub fn latest_session(&self) -> Result<Session> {
+         let mut latest: Option<Session> = None;
+         for event in self.events()? {
+@@ -173,13 +182,14 @@
+ fn render_turn(t: &Turn) -> String {
+     let verification = verification_markdown(&t.verification);
+     format!(
+-        "# Turn {}\n\nSession: {}  \nModel: {}  \nSummary: {}  \nCreated: {}\n\n## Verification\n\n{}\n## VCS\n\n```json\n{}\n```\n",
++        "# Turn {}\n\nSession: {}  \nModel: {}  \nSummary: {}  \nCreated: {}\n\n## Verification\n\n{}\n## Attachments\n\n{}\n## VCS\n\n```json\n{}\n```\n",
+         t.id,
+         t.session,
+         t.model.as_deref().unwrap_or("unknown"),
+         t.summary.as_deref().unwrap_or(""),
+         format_time(&t.created_at),
+         verification,
++        attachments_markdown(&t.attachments),
+         serde_json::to_string_pretty(&t.vcs).unwrap_or_default()
+     )
+ }
+@@ -201,6 +211,8 @@
+             verification_markdown(&turn.verification)
+         ));
+         let files = changed_files(&turn.vcs);
++        out.push_str("\nAttachments:\n");
++        out.push_str(&attachments_markdown(&turn.attachments));
+         out.push_str("\nChanged files:\n");
+         if files.is_empty() {
+             out.push_str("- none\n\n");
+@@ -222,6 +234,17 @@
+     }
+ }
+ 
++fn attachments_markdown(attachments: &[Attachment]) -> String {
++    if attachments.is_empty() {
++        "- none\n".to_string()
++    } else {
++        attachments
++            .iter()
++            .map(|a| format!("- {:?}: `{}`\n", a.kind, a.path))
++            .collect()
++    }
++}
++
+ pub fn changed_files(vcs: &crate::model::VcsInfo) -> &[String] {
+     match vcs {
+         crate::model::VcsInfo::Jj { changed_files, .. }
+diff --git a/src/vcs.rs b/src/vcs.rs
+index 448c6e1c15..115bab131c 100644
+--- a/src/vcs.rs
++++ b/src/vcs.rs
+@@ -35,6 +35,16 @@
+     VcsInfo::None
+ }
+ 
++pub fn diff(cwd: &Path) -> Option<String> {
++    if run(cwd, "jj", &["root"]).is_some() {
++        return run(cwd, "jj", &["diff", "--git"]);
++    }
++    if run(cwd, "git", &["rev-parse", "--show-toplevel"]).is_some() {
++        return run(cwd, "git", &["diff"]);
++    }
++    None
++}
++
+ fn detect_jj(cwd: &Path) -> VcsInfo {
+     let jj_change = run(
+         cwd,

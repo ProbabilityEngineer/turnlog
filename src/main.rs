@@ -7,7 +7,7 @@ mod vcs;
 use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command};
-use model::{Event, SCHEMA_VERSION, Session, Turn};
+use model::{Attachment, AttachmentKind, Event, SCHEMA_VERSION, Session, Turn};
 use store::Store;
 use time::OffsetDateTime;
 
@@ -43,6 +43,7 @@ fn main() -> Result<()> {
             model,
             summary,
             verification,
+            attach_diff,
         } => {
             let store = Store::discover(&cwd)?;
             let session = match session {
@@ -51,14 +52,31 @@ fn main() -> Result<()> {
                     .ok_or_else(|| anyhow::anyhow!("session not found: {id}"))?,
                 None => store.current_session()?,
             };
+            let turn_id = ids::turn_id();
+            let mut attachments = Vec::new();
+            if attach_diff {
+                match vcs::diff(&cwd) {
+                    Some(diff) if !diff.is_empty() => {
+                        let path = format!(".atrace/attachments/{turn_id}.diff");
+                        store.write_attachment(&path, &diff)?;
+                        attachments.push(Attachment {
+                            kind: AttachmentKind::Diff,
+                            path,
+                        });
+                    }
+                    Some(_) => eprintln!("no diff to attach"),
+                    None => eprintln!("no VCS diff available; skipping diff attachment"),
+                }
+            }
             let turn = Turn {
                 schema_version: SCHEMA_VERSION,
-                id: ids::turn_id(),
+                id: turn_id,
                 session: session.id,
                 created_at: OffsetDateTime::now_utc(),
                 model,
                 summary,
                 verification,
+                attachments,
                 vcs: vcs::detect(&cwd),
             };
             store.write_turn(&turn)?;
@@ -262,6 +280,7 @@ mod tests {
                 model: Some("model".to_string()),
                 summary: Some("fixed timestamp rendering".to_string()),
                 verification: vec!["cargo test".to_string()],
+                attachments: vec![],
                 vcs: model::VcsInfo::Git {
                     git_head: Some("abc".to_string()),
                     git_branch: Some("main".to_string()),

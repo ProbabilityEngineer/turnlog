@@ -35,6 +35,16 @@ pub fn detect(cwd: &Path) -> VcsInfo {
     VcsInfo::None
 }
 
+pub fn diff(cwd: &Path) -> Option<String> {
+    if run(cwd, "jj", &["root"]).is_some() {
+        return run(cwd, "jj", &["diff", "--git"]);
+    }
+    if run(cwd, "git", &["rev-parse", "--show-toplevel"]).is_some() {
+        return run(cwd, "git", &["diff"]);
+    }
+    None
+}
+
 fn detect_jj(cwd: &Path) -> VcsInfo {
     let jj_change = run(
         cwd,

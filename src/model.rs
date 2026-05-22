@@ -25,7 +25,21 @@ pub struct Turn {
     pub model: Option<String>,
     pub summary: Option<String>,
     pub verification: Vec<String>,
+    #[serde(default)]
+    pub attachments: Vec<Attachment>,
     pub vcs: VcsInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Attachment {
+    pub kind: AttachmentKind,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum AttachmentKind {
+    Diff,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
