@@ -2,9 +2,9 @@
 
 ## Project goal
 
-Build `atrace`: a Rust CLI provenance recorder for agent sessions and turns.
+Build `turnlog`: a Rust CLI provenance recorder for agent sessions and turns.
 
-`atrace` links:
+`turnlog` links:
 
 ```text
 ticket → agent session → agent turn → jj change or git commit
@@ -18,7 +18,7 @@ It should remain small, understandable, and Git-compatible.
 - Do not implement a daemon in v1.
 - Do not add SQLite/database storage as canonical storage in v1.
 - Do not add graph UI, remotes, merge logic, branch/view semantics, or VCS behavior.
-- Do not mutate VCS history from `atrace` commands.
+- Do not mutate VCS history from `turnlog` commands.
 
 ## Architecture
 
@@ -27,14 +27,14 @@ Follow `DESIGN.md`.
 Canonical storage is append-only JSONL plus JSON snapshots and Markdown reports:
 
 ```text
-.atrace/
+.turnlog/
   index.jsonl
   sessions/
   turns/
   attachments/
 ```
 
-`atrace` detects `jj` first and falls back to Git when `jj` is unavailable.
+`turnlog` detects `jj` first and falls back to Git when `jj` is unavailable.
 
 ## Jujutsu Version Control
 

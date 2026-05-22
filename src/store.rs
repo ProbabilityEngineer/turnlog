@@ -13,7 +13,7 @@ impl Store {
     pub fn discover(cwd: &Path) -> Result<Self> {
         let mut cur = cwd.to_path_buf();
         loop {
-            let candidate = cur.join(".atrace");
+            let candidate = cur.join(".turnlog");
             if candidate.is_dir() {
                 return Ok(Self { root: candidate });
             }
@@ -21,12 +21,12 @@ impl Store {
                 break;
             }
         }
-        bail!("not in an atrace repo; run `atrace init`")
+        bail!("not in an turnlog repo; run `turnlog init`")
     }
 
     pub fn at_repo_root(repo_root: &Path) -> Self {
         Self {
-            root: repo_root.join(".atrace"),
+            root: repo_root.join(".turnlog"),
         }
     }
 
@@ -99,7 +99,7 @@ impl Store {
                 latest = Some(session);
             }
         }
-        latest.context("no session found; run `atrace start`")
+        latest.context("no session found; run `turnlog start`")
     }
 
     pub fn set_current_session(&self, session_id: &str) -> Result<()> {
@@ -119,9 +119,9 @@ impl Store {
     pub fn current_session(&self) -> Result<Session> {
         let id = self
             .current_session_id()?
-            .context("no active session; run `atrace start` or `atrace use <session-id>`")?;
+            .context("no active session; run `turnlog start` or `turnlog use <session-id>`")?;
         self.session_by_id(&id)?.with_context(|| {
-            format!("active session {id} was not found; run `atrace use <session-id>`")
+            format!("active session {id} was not found; run `turnlog use <session-id>`")
         })
     }
 
@@ -282,10 +282,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::at_repo_root(dir.path());
         store.init().unwrap();
-        assert!(dir.path().join(".atrace/index.jsonl").exists());
-        assert!(dir.path().join(".atrace/sessions").is_dir());
-        assert!(dir.path().join(".atrace/turns").is_dir());
-        assert!(dir.path().join(".atrace/reports").is_dir());
+        assert!(dir.path().join(".turnlog/index.jsonl").exists());
+        assert!(dir.path().join(".turnlog/sessions").is_dir());
+        assert!(dir.path().join(".turnlog/turns").is_dir());
+        assert!(dir.path().join(".turnlog/reports").is_dir());
     }
 
     #[test]

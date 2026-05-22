@@ -1,8 +1,8 @@
-# atrace Design
+# turnlog Design
 
 ## Purpose
 
-`atrace` is a lightweight CLI for recording agent work provenance and linking it to task and VCS state.
+`turnlog` is a lightweight CLI for recording agent work provenance and linking it to task and VCS state.
 
 It connects:
 
@@ -10,7 +10,7 @@ It connects:
 ticket → agent session → agent turn → jj change or git commit
 ```
 
-`atrace` is not a version control system. It does not commit, rebase, merge, push, move bookmarks, or replace Git/Jujutsu.
+`turnlog` is not a version control system. It does not commit, rebase, merge, push, move bookmarks, or replace Git/Jujutsu.
 
 ## Product shape
 
@@ -27,7 +27,7 @@ ticket → agent session → agent turn → jj change or git commit
 Canonical storage is append-only JSONL plus small JSON documents and Markdown reports.
 
 ```text
-.atrace/
+.turnlog/
   index.jsonl
   sessions/
     <session-id>.json
@@ -44,12 +44,12 @@ Canonical storage is append-only JSONL plus small JSON documents and Markdown re
 ## Core commands
 
 ```bash
-atrace init
-atrace start --ticket AUTH-123 --goal "Fix auth token validation"
-atrace record --model claude-sonnet-4-5 --verification "cargo test auth"
-atrace status
-atrace log
-atrace show <session-or-turn>
+turnlog init
+turnlog start --ticket AUTH-123 --goal "Fix auth token validation"
+turnlog record --model claude-sonnet-4-5 --verification "cargo test auth"
+turnlog status
+turnlog log
+turnlog show <session-or-turn>
 ```
 
 ## VCS detection
@@ -128,7 +128,7 @@ Turn:
 
 ## Invariants
 
-- `atrace init` is idempotent.
+- `turnlog init` is idempotent.
 - Recording never mutates VCS history.
 - Every event has an ID, timestamp, schema version, and event type.
 - A turn references exactly one session.
@@ -154,7 +154,7 @@ src/
   main.rs       CLI entrypoint
   cli.rs        clap command definitions
   model.rs      typed records and VCS enums
-  store.rs      .atrace read/write and markdown rendering
+  store.rs      .turnlog read/write and markdown rendering
   vcs.rs        jj/git detection and metadata capture
   ids.rs        ID generation
 ```

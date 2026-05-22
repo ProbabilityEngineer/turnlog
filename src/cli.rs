@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "atrace",
+    name = "turnlog",
     version,
     about = "Lightweight agent provenance recorder"
 )]
@@ -13,7 +13,7 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Initialize .atrace storage
+    /// Initialize .turnlog storage
     Init,
     /// Start a new agent session
     Start {
@@ -39,7 +39,7 @@ pub enum Command {
     Current,
     /// Set the active session
     Use { id: String },
-    /// Show current atrace and VCS status
+    /// Show current turnlog and VCS status
     Status,
     /// List trace events
     Log {

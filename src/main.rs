@@ -19,7 +19,7 @@ fn main() -> Result<()> {
             let root = vcs::repo_root(&cwd);
             let store = Store::at_repo_root(&root);
             store.init()?;
-            println!("initialized {}", root.join(".atrace").display());
+            println!("initialized {}", root.join(".turnlog").display());
         }
         Command::Start { ticket, goal } => {
             let root = vcs::repo_root(&cwd);
@@ -57,7 +57,7 @@ fn main() -> Result<()> {
             if attach_diff {
                 match vcs::diff(&cwd) {
                     Some(diff) if !diff.is_empty() => {
-                        let path = format!(".atrace/attachments/{turn_id}.diff");
+                        let path = format!(".turnlog/attachments/{turn_id}.diff");
                         store.write_attachment(&path, &diff)?;
                         attachments.push(Attachment {
                             kind: AttachmentKind::Diff,
@@ -194,7 +194,7 @@ fn vcs_kind(v: &model::VcsInfo) -> &'static str {
 fn print_status(cwd: &std::path::Path) -> Result<()> {
     let store = Store::discover(cwd).ok();
     println!(
-        "atrace: {}",
+        "turnlog: {}",
         if store.is_some() {
             "initialized"
         } else {
