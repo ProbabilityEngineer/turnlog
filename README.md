@@ -28,7 +28,13 @@ atrace start --ticket AUTH-123 --goal "Fix auth token validation"
 atrace record --model claude-sonnet-4-5 --summary "Updated token validation" --verification "cargo test auth"
 atrace status
 atrace log
+atrace log --ticket AUTH-123
+atrace log --session <session-id>
+atrace log --changed src/auth.rs
+atrace log --grep validation
 atrace show <session-or-turn-id>
+atrace show <session-or-turn-id> --json
+atrace grep "cargo test"
 ```
 
 ## Storage

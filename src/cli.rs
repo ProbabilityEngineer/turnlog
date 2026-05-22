@@ -34,7 +34,22 @@ pub enum Command {
     /// Show current atrace and VCS status
     Status,
     /// List trace events
-    Log,
+    Log {
+        #[arg(long)]
+        session: Option<String>,
+        #[arg(long)]
+        ticket: Option<String>,
+        #[arg(long)]
+        grep: Option<String>,
+        #[arg(long)]
+        changed: Option<String>,
+    },
     /// Show one session or turn by ID
-    Show { id: String },
+    Show {
+        id: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Search trace events for text
+    Grep { pattern: String },
 }

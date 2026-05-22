@@ -104,6 +104,22 @@ impl Store {
     pub fn find(&self, id: &str) -> Result<Option<Event>> {
         Ok(self.events()?.into_iter().find(|e| e.id() == id))
     }
+
+    pub fn turns_for_session(&self, session_id: &str) -> Result<Vec<Turn>> {
+        Ok(self
+            .events()?
+            .into_iter()
+            .filter_map(|event| match event {
+                Event::TurnRecorded { turn } if turn.session == session_id => Some(turn),
+                _ => None,
+            })
+            .collect())
+    }
+
+    pub fn render_session_rollup(&self, session: &Session) -> Result<String> {
+        let turns = self.turns_for_session(&session.id)?;
+        Ok(render_session_rollup(session, &turns))
+    }
 }
 
 fn format_time(timestamp: &time::OffsetDateTime) -> String {
@@ -125,14 +141,7 @@ fn render_session(s: &Session) -> String {
 }
 
 fn render_turn(t: &Turn) -> String {
-    let verification = if t.verification.is_empty() {
-        "- none\n".to_string()
-    } else {
-        t.verification
-            .iter()
-            .map(|v| format!("- `{v}`\n"))
-            .collect()
-    };
+    let verification = verification_markdown(&t.verification);
     format!(
         "# Turn {}\n\nSession: {}  \nModel: {}  \nSummary: {}  \nCreated: {}\n\n## Verification\n\n{}\n## VCS\n\n```json\n{}\n```\n",
         t.id,
@@ -143,6 +152,52 @@ fn render_turn(t: &Turn) -> String {
         verification,
         serde_json::to_string_pretty(&t.vcs).unwrap_or_default()
     )
+}
+
+fn render_session_rollup(session: &Session, turns: &[Turn]) -> String {
+    let mut out = render_session(session);
+    out.push_str("\n## Turns\n\n");
+    if turns.is_empty() {
+        out.push_str("No turns recorded.\n");
+        return out;
+    }
+    for turn in turns {
+        out.push_str(&format!(
+            "### {}\n\nModel: {}  \nSummary: {}  \nCreated: {}\n\nVerification:\n{}",
+            turn.id,
+            turn.model.as_deref().unwrap_or("unknown"),
+            turn.summary.as_deref().unwrap_or(""),
+            format_time(&turn.created_at),
+            verification_markdown(&turn.verification)
+        ));
+        let files = changed_files(&turn.vcs);
+        out.push_str("\nChanged files:\n");
+        if files.is_empty() {
+            out.push_str("- none\n\n");
+        } else {
+            for file in files {
+                out.push_str(&format!("- `{file}`\n"));
+            }
+            out.push('\n');
+        }
+    }
+    out
+}
+
+fn verification_markdown(verification: &[String]) -> String {
+    if verification.is_empty() {
+        "- none\n".to_string()
+    } else {
+        verification.iter().map(|v| format!("- `{v}`\n")).collect()
+    }
+}
+
+pub fn changed_files(vcs: &crate::model::VcsInfo) -> &[String] {
+    match vcs {
+        crate::model::VcsInfo::Jj { changed_files, .. }
+        | crate::model::VcsInfo::Git { changed_files, .. } => changed_files,
+        crate::model::VcsInfo::None => &[],
+    }
 }
 
 #[cfg(test)]

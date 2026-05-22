@@ -1,6 +1,6 @@
 ---
 id: atr-bfjo
-status: open
+status: closed
 deps: [atr-1opw]
 links: []
 created: 2026-05-22T16:41:16Z
