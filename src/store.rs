@@ -3,6 +3,7 @@ use anyhow::{Context, Result, bail};
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use time::format_description::well_known::Rfc3339;
 
 pub struct Store {
     root: PathBuf,
@@ -105,13 +106,19 @@ impl Store {
     }
 }
 
+fn format_time(timestamp: &time::OffsetDateTime) -> String {
+    timestamp
+        .format(&Rfc3339)
+        .unwrap_or_else(|_| timestamp.to_string())
+}
+
 fn render_session(s: &Session) -> String {
     format!(
         "# Session {}\n\nTicket: {}  \nGoal: {}  \nCreated: {}  \nRepo: {}\n\n## VCS at start\n\n```json\n{}\n```\n",
         s.id,
         s.ticket.as_deref().unwrap_or("none"),
         s.goal,
-        s.created_at,
+        format_time(&s.created_at),
         s.repo_root,
         serde_json::to_string_pretty(&s.vcs_start).unwrap_or_default()
     )
@@ -132,7 +139,7 @@ fn render_turn(t: &Turn) -> String {
         t.session,
         t.model.as_deref().unwrap_or("unknown"),
         t.summary.as_deref().unwrap_or(""),
-        t.created_at,
+        format_time(&t.created_at),
         verification,
         serde_json::to_string_pretty(&t.vcs).unwrap_or_default()
     )
