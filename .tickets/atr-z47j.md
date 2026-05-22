@@ -1,6 +1,6 @@
 ---
 id: atr-z47j
-status: in_progress
+status: closed
 deps: []
 links: []
 created: 2026-05-22T15:45:34Z

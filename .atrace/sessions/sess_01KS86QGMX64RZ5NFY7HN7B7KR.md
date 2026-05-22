@@ -1,0 +1,36 @@
+# Session sess_01KS86QGMX64RZ5NFY7HN7B7KR
+
+Ticket: TEST-1  
+Goal: Smoke test atrace  
+Created: 2026-05-22 16:01:39.997478 +00:00:00  
+Repo: /Users/sam/git/agents/atrace
+
+## VCS at start
+
+```json
+{
+  "kind": "jj",
+  "jj_change": "unmzlkqnzlun",
+  "jj_commit": "41d77a208f51",
+  "jj_operation": "fe34e09e44ad",
+  "git_head": "bbef070b46bb070805d8d752bb11d899d156b13f",
+  "git_branch": "main",
+  "dirty": true,
+  "changed_files": [
+    "rking copy changes:",
+    ".atrace/index.jsonl",
+    ".gitignore",
+    "AGENTS.md",
+    "Cargo.lock",
+    "Cargo.toml",
+    "src/cli.rs",
+    "src/ids.rs",
+    "src/main.rs",
+    "src/model.rs",
+    "src/store.rs",
+    "src/vcs.rs",
+    "rking copy  (@) : unmzlkqn 41d77a20 (no description set)",
+    "rent commit (@-): wppvqlyu bbef070b main main@origin | Add atrace design and task plan"
+  ]
+}
+```

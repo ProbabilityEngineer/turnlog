@@ -1,0 +1,42 @@
+# Turn turn_01KS86QGS9M212ZWEFMW9PGW49
+
+Session: sess_01KS86QGMX64RZ5NFY7HN7B7KR  
+Model: test-model  
+Summary: Recorded smoke test  
+Created: 2026-05-22 16:01:40.137769 +00:00:00
+
+## Verification
+
+- `cargo test`
+
+## VCS
+
+```json
+{
+  "kind": "jj",
+  "jj_change": "unmzlkqnzlun",
+  "jj_commit": "dc249e3bf9ea",
+  "jj_operation": "2f213901dde8",
+  "git_head": "bbef070b46bb070805d8d752bb11d899d156b13f",
+  "git_branch": "main",
+  "dirty": true,
+  "changed_files": [
+    "rking copy changes:",
+    ".atrace/index.jsonl",
+    ".atrace/sessions/sess_01KS86QGMX64RZ5NFY7HN7B7KR.json",
+    ".atrace/sessions/sess_01KS86QGMX64RZ5NFY7HN7B7KR.md",
+    ".gitignore",
+    "AGENTS.md",
+    "Cargo.lock",
+    "Cargo.toml",
+    "src/cli.rs",
+    "src/ids.rs",
+    "src/main.rs",
+    "src/model.rs",
+    "src/store.rs",
+    "src/vcs.rs",
+    "rking copy  (@) : unmzlkqn dc249e3b (no description set)",
+    "rent commit (@-): wppvqlyu bbef070b main main@origin | Add atrace design and task plan"
+  ]
+}
+```

@@ -1,6 +1,6 @@
 ---
 id: atr-umkn
-status: open
+status: closed
 deps: []
 links: []
 created: 2026-05-22T15:45:34Z

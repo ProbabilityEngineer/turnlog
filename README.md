@@ -13,3 +13,34 @@ ticket → agent session → agent turn → jj change or git commit
 ```
 
 without becoming a VCS.
+
+## Install / build
+
+```bash
+cargo build
+```
+
+## Use
+
+```bash
+atrace init
+atrace start --ticket AUTH-123 --goal "Fix auth token validation"
+atrace record --model claude-sonnet-4-5 --summary "Updated token validation" --verification "cargo test auth"
+atrace status
+atrace log
+atrace show <session-or-turn-id>
+```
+
+## Storage
+
+`atrace` writes human-reviewable files under `.atrace/`:
+
+```text
+.atrace/
+  index.jsonl
+  sessions/
+  turns/
+  attachments/
+```
+
+`index.jsonl` is the append-only canonical event log. JSON snapshots and Markdown reports are written for sessions and turns.
