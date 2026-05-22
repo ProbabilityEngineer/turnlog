@@ -34,6 +34,7 @@ impl Store {
         fs::create_dir_all(self.root.join("sessions"))?;
         fs::create_dir_all(self.root.join("turns"))?;
         fs::create_dir_all(self.root.join("attachments"))?;
+        fs::create_dir_all(self.root.join("reports"))?;
         if !self.root.join("index.jsonl").exists() {
             fs::write(self.root.join("index.jsonl"), "")?;
         }
@@ -170,6 +171,15 @@ impl Store {
         let turns = self.turns_for_session(&session.id)?;
         Ok(render_session_rollup(session, &turns))
     }
+
+    pub fn write_session_report(&self, session: &Session) -> Result<PathBuf> {
+        let report = self.render_session_rollup(session)?;
+        let reports_dir = self.root.join("reports");
+        fs::create_dir_all(&reports_dir)?;
+        let path = reports_dir.join(format!("{}.md", session.id));
+        fs::write(&path, report)?;
+        Ok(path)
+    }
 }
 
 fn format_time(timestamp: &time::OffsetDateTime) -> String {
@@ -275,6 +285,7 @@ mod tests {
         assert!(dir.path().join(".atrace/index.jsonl").exists());
         assert!(dir.path().join(".atrace/sessions").is_dir());
         assert!(dir.path().join(".atrace/turns").is_dir());
+        assert!(dir.path().join(".atrace/reports").is_dir());
     }
 
     #[test]
@@ -288,5 +299,27 @@ mod tests {
             store.current_session_id().unwrap().as_deref(),
             Some("sess_test")
         );
+    }
+
+    #[test]
+    fn write_session_report_creates_markdown() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        let session = Session {
+            schema_version: crate::model::SCHEMA_VERSION,
+            id: "sess_test".to_string(),
+            ticket: Some("T-1".to_string()),
+            goal: "Test reports".to_string(),
+            created_at: time::OffsetDateTime::UNIX_EPOCH,
+            repo_root: dir.path().display().to_string(),
+            vcs_start: crate::model::VcsInfo::None,
+        };
+        store.write_session(&session).unwrap();
+        let path = store.write_session_report(&session).unwrap();
+        let report = fs::read_to_string(path).unwrap();
+        assert!(report.contains("# Session sess_test"));
+        assert!(report.contains("## Turns"));
+        assert!(report.contains("No turns recorded"));
     }
 }

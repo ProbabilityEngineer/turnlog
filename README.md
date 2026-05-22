@@ -38,6 +38,8 @@ atrace log --changed src/auth.rs
 atrace log --grep validation
 atrace show <session-or-turn-id>
 atrace show <session-or-turn-id> --json
+atrace report <session-id>
+atrace report <session-id> --stdout
 atrace grep "cargo test"
 ```
 

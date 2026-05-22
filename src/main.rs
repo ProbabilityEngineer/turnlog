@@ -167,6 +167,18 @@ fn main() -> Result<()> {
                 }
             }
         }
+        Command::Report { id, stdout } => {
+            let store = Store::discover(&cwd)?;
+            let session = store
+                .session_by_id(&id)?
+                .ok_or_else(|| anyhow::anyhow!("session not found: {id}"))?;
+            if stdout {
+                println!("{}", store.render_session_rollup(&session)?);
+            } else {
+                let path = store.write_session_report(&session)?;
+                println!("wrote {}", path.display());
+            }
+        }
     }
     Ok(())
 }

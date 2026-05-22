@@ -1,0 +1,38 @@
+# Turn turn_01KS8ADQ4MW3DKP59DFBNX70KA
+
+Session: sess_01KS88A0SREQVMXT2VB2A1978V  
+Model: claude-sonnet-4-5  
+Summary: Added session report command  
+Created: 2026-05-22T17:06:13.338085Z
+
+## Verification
+
+- `cargo test`
+- `cargo build --release`
+
+## Attachments
+
+- Diff: `.atrace/attachments/turn_01KS8ADQ4MW3DKP59DFBNX70KA.diff`
+
+## VCS
+
+```json
+{
+  "kind": "jj",
+  "jj_change": "vokmzpkwsqtz",
+  "jj_commit": "e79c58ce3f9b",
+  "jj_operation": "1cd4390cf64a",
+  "git_head": "2e30dade29359ea588e33a4afbd5d92fe7fd2cf2",
+  "git_branch": "main",
+  "dirty": true,
+  "changed_files": [
+    ".atrace/attachments/turn_01KS8ADQ4MW3DKP59DFBNX70KA.diff",
+    ".atrace/reports/sess_01KS88A0SREQVMXT2VB2A1978V.md",
+    ".tickets/atr-ny88.md",
+    "README.md",
+    "src/cli.rs",
+    "src/main.rs",
+    "src/store.rs"
+  ]
+}
+```

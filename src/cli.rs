@@ -60,4 +60,10 @@ pub enum Command {
     },
     /// Search trace events for text
     Grep { pattern: String },
+    /// Write a Markdown report for a session
+    Report {
+        id: String,
+        #[arg(long)]
+        stdout: bool,
+    },
 }
