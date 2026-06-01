@@ -45,7 +45,7 @@ turnlog grep "cargo test"
 
 ## Storage
 
-`turnlog init` adds `.turnlog/` to `.gitignore` when missing, keeping local provenance out of GitHub by default.
+`turnlog init` adds `.turnlog/` to `.gitignore` when missing, keeping local provenance out of GitHub by default. Treat turnlog as local-only provenance unless a repo explicitly opts into sharing it. If shared provenance is needed, commit a curated report or summary intentionally.
 
 `turnlog` writes human-reviewable files under `.turnlog/`:
 

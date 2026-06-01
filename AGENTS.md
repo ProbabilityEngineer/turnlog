@@ -4,6 +4,8 @@
 
 Build `turnlog`: a Rust CLI provenance recorder for agent sessions and turns.
 
+Use turnlog as local-only provenance by default. Record meaningful repository work for continuity, validation, and handoff, even when `.turnlog/` is ignored. Do not assume turnlog records will be committed or pushed. If shared provenance is needed, create a curated report or summary and commit it intentionally. Do not record routine chat-only turns.
+
 `turnlog` links:
 
 ```text
