@@ -14,10 +14,18 @@ ticket → agent session → agent turn → jj change or git commit
 
 without becoming a VCS.
 
-## Install / build
+## Install
+
+From crates.io, after publication:
 
 ```bash
-cargo build
+cargo install turnlog
+```
+
+From source:
+
+```bash
+cargo build --release
 ```
 
 ## Use
