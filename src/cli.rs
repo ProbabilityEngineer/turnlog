@@ -7,6 +7,10 @@ use clap::{Parser, Subcommand};
     about = "Lightweight agent provenance recorder"
 )]
 pub struct Cli {
+    /// Directory whose repository/turnlog should be used instead of the process cwd
+    #[arg(long, short = 'C', global = true, value_name = "DIR")]
+    pub cwd: Option<std::path::PathBuf>,
+
     #[command(subcommand)]
     pub command: Command,
 }

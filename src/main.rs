@@ -13,7 +13,11 @@ use time::OffsetDateTime;
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    let cwd = std::env::current_dir()?;
+    let cwd = match cli.cwd {
+        Some(path) if path.is_absolute() => path,
+        Some(path) => std::env::current_dir()?.join(path),
+        None => std::env::current_dir()?,
+    };
     match cli.command {
         Command::Init => {
             let root = vcs::repo_root(&cwd);

@@ -31,6 +31,8 @@ turnlog record --model claude-sonnet-4-5 --summary "Updated token validation" --
 turnlog record --attach-diff --summary "Record with patch snapshot"
 turnlog record --session <session-id> --summary "Explicit session record"
 turnlog status
+turnlog --cwd /path/to/repo status
+turnlog -C /path/to/repo record --summary "Record a different repo"
 turnlog log
 turnlog log --ticket AUTH-123
 turnlog log --session <session-id>
@@ -44,6 +46,8 @@ turnlog grep "cargo test"
 ```
 
 ## Storage
+
+`turnlog --cwd DIR` (or `-C DIR`) runs against `DIR` instead of the process current directory, which is useful when an agent process is launched from one directory while editing another repository.
 
 `turnlog init` adds `.turnlog/` to `.gitignore` when missing, keeping local provenance out of GitHub by default. Treat turnlog as local-only provenance unless a repo explicitly opts into sharing it. If shared provenance is needed, commit a curated report or summary intentionally.
 
