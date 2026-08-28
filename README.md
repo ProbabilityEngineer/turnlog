@@ -50,6 +50,7 @@ turnlog show <session-or-turn-id>
 turnlog show <session-or-turn-id> --json
 turnlog report <session-id>
 turnlog report <session-id> --stdout
+turnlog repair
 turnlog grep "cargo test"
 ```
 
@@ -69,4 +70,4 @@ turnlog grep "cargo test"
   attachments/
 ```
 
-`index.jsonl` is the append-only canonical event log. JSON snapshots and Markdown reports are written for sessions and turns.
+Session and turn JSON files are canonical. `index.jsonl` is a rebuildable derived index, protected by a repository lock. Read commands skip malformed index lines with an incomplete-results warning; write commands refuse to append until repair. If it is damaged or a crash leaves canonical records unindexed, run `turnlog repair`; the existing index is backed up and rebuilt from canonical files. Mutations use an OS advisory lock, which is released automatically when a process exits; the persistent `.lock` file itself is harmless.

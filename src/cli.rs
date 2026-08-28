@@ -64,6 +64,8 @@ pub enum Command {
     },
     /// Search trace events for text
     Grep { pattern: String },
+    /// Rebuild index.jsonl from canonical session and turn files
+    Repair,
     /// Write a Markdown report for a session
     Report {
         id: String,

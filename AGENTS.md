@@ -78,3 +78,8 @@ cargo build
 ```
 
 Run relevant tests before closing implementation tickets.
+
+## Turnlog
+
+- When you attempt to use turnlog for meaningful repository work and the target repo is not initialized, initialize it rather than abandoning the record.
+- Keep `.turnlog/` out of GitHub by default unless the repo explicitly opts into tracking it.

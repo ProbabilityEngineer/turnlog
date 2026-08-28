@@ -171,6 +171,14 @@ fn main() -> Result<()> {
                 }
             }
         }
+        Command::Repair => {
+            let store = Store::discover(&cwd)?;
+            let (rebuilt, skipped) = store.repair_index()?;
+            println!("repaired index: {rebuilt} events");
+            for path in skipped {
+                eprintln!("skipped invalid canonical file: {}", path.display());
+            }
+        }
         Command::Report { id, stdout } => {
             let store = Store::discover(&cwd)?;
             let session = store
@@ -226,6 +234,13 @@ fn print_status(cwd: &std::path::Path) -> Result<()> {
                     latest.goal
                 );
             }
+        }
+        let orphaned = store.orphaned_records()?;
+        if !orphaned.is_empty() {
+            eprintln!(
+                "warning: {} canonical records are missing from index; run `turnlog repair`",
+                orphaned.len()
+            );
         }
         match store.latest_turn()? {
             Some(turn) => println!(

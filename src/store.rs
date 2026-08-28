@@ -1,10 +1,14 @@
 use crate::model::{Attachment, Event, Session, Turn};
 use anyhow::{Context, Result, bail};
+use fs2::FileExt;
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::thread;
+use std::time::{Duration, Instant};
 use time::format_description::well_known::Rfc3339;
 
+#[derive(Clone)]
 pub struct Store {
     root: PathBuf,
 }
@@ -69,46 +73,62 @@ impl Store {
         Ok(())
     }
 
-    pub fn append_event(&self, event: &Event) -> Result<()> {
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(self.root.join("index.jsonl"))?;
-        serde_json::to_writer(&mut file, event)?;
-        writeln!(file)?;
-        Ok(())
+    fn lock(&self) -> Result<StoreLock> {
+        StoreLock::acquire(self.root.join(".lock"))
     }
 
     pub fn write_session(&self, session: &Session) -> Result<()> {
         let json = serde_json::to_string_pretty(session)?;
-        fs::write(
-            self.root
+        let _lock = self.lock()?;
+        self.validate_index()?;
+        atomic_write(
+            &self
+                .root
                 .join("sessions")
                 .join(format!("{}.json", session.id)),
-            json,
+            json.as_bytes(),
         )?;
-        fs::write(
-            self.root
+        atomic_write(
+            &self
+                .root
                 .join("sessions")
                 .join(format!("{}.md", session.id)),
-            render_session(session),
+            render_session(session).as_bytes(),
         )?;
-        self.append_event(&Event::SessionStarted {
+        let mut bytes = serde_json::to_vec(&Event::SessionStarted {
             session: session.clone(),
-        })
+        })?;
+        bytes.push(b'\n');
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.root.join("index.jsonl"))?;
+        file.write_all(&bytes)?;
+        file.sync_data()?;
+        Ok(())
     }
 
     pub fn write_turn(&self, turn: &Turn) -> Result<()> {
         let json = serde_json::to_string_pretty(turn)?;
-        fs::write(
-            self.root.join("turns").join(format!("{}.json", turn.id)),
-            json,
+        let _lock = self.lock()?;
+        self.validate_index()?;
+        atomic_write(
+            &self.root.join("turns").join(format!("{}.json", turn.id)),
+            json.as_bytes(),
         )?;
-        fs::write(
-            self.root.join("turns").join(format!("{}.md", turn.id)),
-            render_turn(turn),
+        atomic_write(
+            &self.root.join("turns").join(format!("{}.md", turn.id)),
+            render_turn(turn).as_bytes(),
         )?;
-        self.append_event(&Event::TurnRecorded { turn: turn.clone() })
+        let mut bytes = serde_json::to_vec(&Event::TurnRecorded { turn: turn.clone() })?;
+        bytes.push(b'\n');
+        let mut file = OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.root.join("index.jsonl"))?;
+        file.write_all(&bytes)?;
+        file.sync_data()?;
+        Ok(())
     }
 
     pub fn write_attachment(&self, path: &str, content: &str) -> Result<()> {
@@ -161,12 +181,115 @@ impl Store {
     }
 
     pub fn events(&self) -> Result<Vec<Event>> {
+        let (events, warnings) = self.read_events(false)?;
+        for warning in warnings {
+            eprintln!("warning: {warning}; results are incomplete; run `turnlog repair`");
+        }
+        Ok(events)
+    }
+
+    fn validate_index(&self) -> Result<()> {
+        let (_, warnings) = self.read_events(true)?;
+        if let Some(warning) = warnings.first() {
+            bail!("{warning}; refusing to append; run `turnlog repair`");
+        }
+        Ok(())
+    }
+
+    fn read_events(&self, strict: bool) -> Result<(Vec<Event>, Vec<String>)> {
         let path = self.root.join("index.jsonl");
-        let raw = fs::read_to_string(path)?;
-        raw.lines()
-            .filter(|l| !l.trim().is_empty())
-            .map(|line| Ok(serde_json::from_str(line)?))
-            .collect()
+        let raw = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
+        let mut events = Vec::new();
+        let mut warnings = Vec::new();
+        for (number, line) in raw
+            .lines()
+            .enumerate()
+            .filter(|(_, line)| !line.trim().is_empty())
+        {
+            match serde_json::from_str(line) {
+                Ok(event) => events.push(event),
+                Err(error) => {
+                    let excerpt: String = line.chars().take(80).collect();
+                    let warning = format!(
+                        "{}:{}: invalid JSON at column {}; excerpt: {:?}",
+                        path.display(),
+                        number + 1,
+                        error.column(),
+                        excerpt
+                    );
+                    if strict {
+                        bail!(warning);
+                    }
+                    warnings.push(warning);
+                }
+            }
+        }
+        Ok((events, warnings))
+    }
+
+    pub fn orphaned_records(&self) -> Result<Vec<PathBuf>> {
+        let indexed: std::collections::HashSet<String> = self
+            .events()?
+            .into_iter()
+            .map(|event| event.id().to_owned())
+            .collect();
+        let mut orphaned = Vec::new();
+        for dir in ["sessions", "turns"] {
+            for entry in fs::read_dir(self.root.join(dir))? {
+                let path = entry?.path();
+                if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+                    continue;
+                }
+                let Some(id) = path.file_stem().and_then(|stem| stem.to_str()) else {
+                    continue;
+                };
+                if !indexed.contains(id) {
+                    orphaned.push(path);
+                }
+            }
+        }
+        orphaned.sort();
+        Ok(orphaned)
+    }
+
+    pub fn repair_index(&self) -> Result<(usize, Vec<PathBuf>)> {
+        let _lock = self.lock()?;
+        let index = self.root.join("index.jsonl");
+        if index.exists() {
+            fs::copy(&index, index.with_extension("jsonl.bak"))?;
+        }
+        let mut events = Vec::new();
+        let mut skipped = Vec::new();
+        for (dir, kind) in [("sessions", "session"), ("turns", "turn")] {
+            for entry in fs::read_dir(self.root.join(dir))? {
+                let path = entry?.path();
+                if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                    continue;
+                }
+                let parsed = fs::read_to_string(&path).ok().and_then(|raw| match kind {
+                    "session" => serde_json::from_str::<crate::model::Session>(&raw)
+                        .ok()
+                        .map(|s| Event::SessionStarted { session: s }),
+                    _ => serde_json::from_str::<crate::model::Turn>(&raw)
+                        .ok()
+                        .map(|t| Event::TurnRecorded { turn: t }),
+                });
+                match parsed {
+                    Some(event) => events.push(event),
+                    None => skipped.push(path),
+                }
+            }
+        }
+        events.sort_by_key(|event| event.id().to_owned());
+        let mut bytes = Vec::new();
+        for event in &events {
+            bytes.extend(serde_json::to_vec(event)?);
+            bytes.push(b'\n');
+        }
+        let temp = index.with_extension("jsonl.tmp");
+        atomic_write(&temp, &bytes)?;
+        fs::rename(temp, index)?;
+        Ok((events.len(), skipped))
     }
 
     pub fn find(&self, id: &str) -> Result<Option<Event>> {
@@ -207,6 +330,55 @@ impl Store {
         let path = reports_dir.join(format!("{}.md", session.id));
         fs::write(&path, report)?;
         Ok(path)
+    }
+}
+
+fn atomic_temp_path(path: &Path) -> PathBuf {
+    path.with_extension(format!("{}.tmp", std::process::id()))
+}
+
+fn atomic_write(path: &Path, bytes: &[u8]) -> Result<()> {
+    let temp = atomic_temp_path(path);
+    let mut file = fs::File::create(&temp)?;
+    file.write_all(bytes)?;
+    file.sync_all()?;
+    fs::rename(temp, path)?;
+    Ok(())
+}
+
+struct StoreLock {
+    file: fs::File,
+}
+
+impl StoreLock {
+    fn acquire(path: PathBuf) -> Result<Self> {
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .open(path)?;
+        let deadline = Instant::now() + Duration::from_secs(10);
+        loop {
+            match file.try_lock_exclusive() {
+                Ok(()) => return Ok(Self { file }),
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::WouldBlock
+                        && Instant::now() < deadline =>
+                {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                    bail!("timed out waiting for active turnlog writer; retry after it finishes")
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+    }
+}
+
+impl Drop for StoreLock {
+    fn drop(&mut self) {
+        let _ = self.file.unlock();
     }
 }
 
@@ -350,25 +522,139 @@ mod tests {
         );
     }
 
+    fn session(id: impl Into<String>) -> Session {
+        Session {
+            schema_version: crate::model::SCHEMA_VERSION,
+            id: id.into(),
+            ticket: None,
+            goal: "test".to_string(),
+            created_at: time::OffsetDateTime::UNIX_EPOCH,
+            repo_root: "test".to_string(),
+            vcs_start: crate::model::VcsInfo::None,
+        }
+    }
+
     #[test]
     fn write_session_report_creates_markdown() {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::at_repo_root(dir.path());
         store.init().unwrap();
-        let session = Session {
-            schema_version: crate::model::SCHEMA_VERSION,
-            id: "sess_test".to_string(),
-            ticket: Some("T-1".to_string()),
-            goal: "Test reports".to_string(),
-            created_at: time::OffsetDateTime::UNIX_EPOCH,
-            repo_root: dir.path().display().to_string(),
-            vcs_start: crate::model::VcsInfo::None,
-        };
+        let mut session = session("sess_test");
+        session.ticket = Some("T-1".to_string());
+        session.goal = "Test reports".to_string();
+        session.repo_root = dir.path().display().to_string();
         store.write_session(&session).unwrap();
         let path = store.write_session_report(&session).unwrap();
         let report = fs::read_to_string(path).unwrap();
         assert!(report.contains("# Session sess_test"));
         assert!(report.contains("## Turns"));
         assert!(report.contains("No turns recorded"));
+    }
+
+    #[test]
+    fn malformed_index_is_skipped_for_reads_and_refuses_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        store.write_session(&session("sess_valid")).unwrap();
+        fs::write(dir.path().join(".turnlog/index.jsonl"), "not json\n").unwrap();
+        assert!(store.events().unwrap().is_empty());
+        assert!(store.write_session(&session("sess_rejected")).is_err());
+    }
+
+    #[test]
+    fn repair_detects_and_indexes_orphaned_canonical_records() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        store.write_session(&session("sess_orphan")).unwrap();
+        fs::write(dir.path().join(".turnlog/index.jsonl"), "").unwrap();
+        assert_eq!(store.orphaned_records().unwrap().len(), 1);
+        assert_eq!(store.repair_index().unwrap().0, 1);
+        assert!(store.orphaned_records().unwrap().is_empty());
+        assert!(dir.path().join(".turnlog/index.jsonl.bak").exists());
+    }
+
+    #[test]
+    fn leftover_lock_file_does_not_block_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        fs::write(
+            dir.path().join(".turnlog/.lock"),
+            "left by a crashed process\n",
+        )
+        .unwrap();
+        store.write_session(&session("sess_after_crash")).unwrap();
+        assert!(store.root.join(".lock").exists());
+    }
+
+    #[test]
+    fn failed_canonical_atomic_write_leaves_no_partial_record() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("record.json");
+        fs::create_dir(atomic_temp_path(&path)).unwrap();
+        assert!(atomic_write(&path, b"complete record").is_err());
+        assert!(!path.exists());
+    }
+
+    #[test]
+    fn interruption_after_canonical_write_leaves_an_orphan_repair_can_restore() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        let session = session("sess_orphan_after_interruption");
+        atomic_write(
+            &store
+                .root
+                .join("sessions/sess_orphan_after_interruption.json"),
+            serde_json::to_string_pretty(&session).unwrap().as_bytes(),
+        )
+        .unwrap();
+        fs::write(
+            store
+                .root
+                .join("sessions/sess_orphan_after_interruption.md"),
+            render_session(&session),
+        )
+        .unwrap();
+        assert_eq!(store.orphaned_records().unwrap().len(), 1);
+        assert_eq!(store.repair_index().unwrap().0, 1);
+        assert!(store.orphaned_records().unwrap().is_empty());
+    }
+
+    #[test]
+    fn failed_repair_before_replacement_preserves_existing_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        store.write_session(&session("sess_repair_safe")).unwrap();
+        let index = store.root.join("index.jsonl");
+        let original = fs::read_to_string(&index).unwrap();
+        let replacement_temp = index.with_extension("jsonl.tmp");
+        fs::create_dir(atomic_temp_path(&replacement_temp)).unwrap();
+        assert!(store.repair_index().is_err());
+        assert_eq!(fs::read_to_string(&index).unwrap(), original);
+    }
+
+    #[test]
+    fn concurrent_writers_produce_complete_parseable_events() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        let mut workers = Vec::new();
+        for index in 0..24 {
+            let store = store.clone();
+            workers.push(thread::spawn(move || {
+                store.write_session(&session(format!("sess_{index:02}")))
+            }));
+        }
+        for worker in workers {
+            worker.join().unwrap().unwrap();
+        }
+        let events = store.events().unwrap();
+        assert_eq!(events.len(), 24);
+        let ids: std::collections::HashSet<_> = events.iter().map(Event::id).collect();
+        assert_eq!(ids.len(), 24);
     }
 }
