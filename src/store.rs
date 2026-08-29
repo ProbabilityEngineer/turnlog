@@ -13,6 +13,11 @@ pub struct Store {
     root: PathBuf,
 }
 
+struct QueriedEvents {
+    events: Vec<Event>,
+    warnings: Vec<String>,
+}
+
 impl Store {
     pub fn discover(cwd: &Path) -> Result<Self> {
         let mut cur = cwd.to_path_buf();
@@ -181,22 +186,23 @@ impl Store {
     }
 
     pub fn events(&self) -> Result<Vec<Event>> {
-        let (events, warnings) = self.read_events(false)?;
-        for warning in warnings {
+        let queried = self.query_events()?;
+        for warning in queried.warnings {
             eprintln!("warning: {warning}; results are incomplete; run `turnlog repair`");
         }
-        Ok(events)
+        Ok(queried.events)
     }
 
     fn validate_index(&self) -> Result<()> {
-        let (_, warnings) = self.read_events(true)?;
-        if let Some(warning) = warnings.first() {
+        self.read_index(true)?;
+        let queried = self.query_events()?;
+        if let Some(warning) = queried.warnings.first() {
             bail!("{warning}; refusing to append; run `turnlog repair`");
         }
         Ok(())
     }
 
-    fn read_events(&self, strict: bool) -> Result<(Vec<Event>, Vec<String>)> {
+    fn read_index(&self, strict: bool) -> Result<(Vec<Event>, Vec<String>)> {
         let path = self.root.join("index.jsonl");
         let raw = fs::read_to_string(&path).with_context(|| format!("read {}", path.display()))?;
         let mut events = Vec::new();
@@ -227,9 +233,79 @@ impl Store {
         Ok((events, warnings))
     }
 
+    fn canonical_events(&self) -> Result<(Vec<Event>, Vec<String>)> {
+        let mut events = Vec::new();
+        let mut warnings = Vec::new();
+        for (dir, kind) in [("sessions", "session"), ("turns", "turn")] {
+            for entry in fs::read_dir(self.root.join(dir))? {
+                let path = entry?.path();
+                if path.extension().and_then(|extension| extension.to_str()) != Some("json") {
+                    continue;
+                }
+                let parsed = fs::read_to_string(&path).ok().and_then(|raw| match kind {
+                    "session" => serde_json::from_str::<Session>(&raw)
+                        .ok()
+                        .map(|session| Event::SessionStarted { session }),
+                    _ => serde_json::from_str::<Turn>(&raw)
+                        .ok()
+                        .map(|turn| Event::TurnRecorded { turn }),
+                });
+                match parsed {
+                    Some(event) => events.push(event),
+                    None => warnings.push(format!("invalid canonical record {}", path.display())),
+                }
+            }
+        }
+        Ok((events, warnings))
+    }
+
+    fn query_events(&self) -> Result<QueriedEvents> {
+        let (indexed, mut warnings) = self.read_index(false)?;
+        let (canonical, canonical_warnings) = self.canonical_events()?;
+        warnings.extend(canonical_warnings);
+        let indexed_by_id: std::collections::HashMap<_, _> = indexed
+            .into_iter()
+            .map(|event| (event.id().to_owned(), event))
+            .collect();
+        let canonical_ids: std::collections::HashSet<_> = canonical
+            .iter()
+            .map(|event| event.id().to_owned())
+            .collect();
+        let mut events = Vec::new();
+        for event in canonical {
+            match indexed_by_id.get(event.id()) {
+                None => warnings.push(format!(
+                    "canonical record {} is missing from index",
+                    event.id()
+                )),
+                Some(indexed) if indexed != &event => warnings.push(format!(
+                    "index record {} disagrees with canonical record",
+                    event.id()
+                )),
+                _ => {}
+            }
+            events.push(event);
+        }
+        for id in indexed_by_id
+            .keys()
+            .filter(|id| !canonical_ids.contains(*id))
+        {
+            warnings.push(format!(
+                "index record {id} has no canonical record and was ignored"
+            ));
+        }
+        events.sort_by(|left, right| {
+            left.created_at()
+                .cmp(&right.created_at())
+                .then_with(|| left.id().cmp(right.id()))
+        });
+        Ok(QueriedEvents { events, warnings })
+    }
+
     pub fn orphaned_records(&self) -> Result<Vec<PathBuf>> {
         let indexed: std::collections::HashSet<String> = self
-            .events()?
+            .read_index(false)?
+            .0
             .into_iter()
             .map(|event| event.id().to_owned())
             .collect();
@@ -280,7 +356,11 @@ impl Store {
                 }
             }
         }
-        events.sort_by_key(|event| event.id().to_owned());
+        events.sort_by(|left, right| {
+            left.created_at()
+                .cmp(&right.created_at())
+                .then_with(|| left.id().cmp(right.id()))
+        });
         let mut bytes = Vec::new();
         for event in &events {
             bytes.extend(serde_json::to_vec(event)?);
@@ -558,8 +638,75 @@ mod tests {
         store.init().unwrap();
         store.write_session(&session("sess_valid")).unwrap();
         fs::write(dir.path().join(".turnlog/index.jsonl"), "not json\n").unwrap();
+        assert_eq!(store.events().unwrap().len(), 1);
+        assert!(store.write_session(&session("sess_rejected")).is_err());
+    }
+
+    #[test]
+    fn canonical_records_win_over_disagreeing_index_entries() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        let original = session("sess_canonical");
+        store.write_session(&original).unwrap();
+        let mut canonical = original.clone();
+        canonical.goal = "canonical correction".to_string();
+        fs::write(
+            store.root.join("sessions/sess_canonical.json"),
+            serde_json::to_string_pretty(&canonical).unwrap(),
+        )
+        .unwrap();
+        let events = store.events().unwrap();
+        assert!(
+            matches!(&events[0], Event::SessionStarted { session } if session.goal == "canonical correction")
+        );
+        assert!(store.write_session(&session("sess_rejected")).is_err());
+    }
+
+    #[test]
+    fn index_only_events_are_ignored_and_require_repair_before_writes() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        let stale = Event::SessionStarted {
+            session: session("sess_stale_index"),
+        };
+        fs::write(
+            store.root.join("index.jsonl"),
+            format!("{}\n", serde_json::to_string(&stale).unwrap()),
+        )
+        .unwrap();
         assert!(store.events().unwrap().is_empty());
         assert!(store.write_session(&session("sess_rejected")).is_err());
+    }
+
+    #[test]
+    fn canonical_queries_are_deterministically_ordered_by_timestamp_then_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at_repo_root(dir.path());
+        store.init().unwrap();
+        let mut later = session("sess_a");
+        later.created_at += time::Duration::seconds(1);
+        let earlier = session("sess_z");
+        for record in [&later, &earlier] {
+            fs::write(
+                store
+                    .root
+                    .join("sessions")
+                    .join(format!("{}.json", record.id)),
+                serde_json::to_string_pretty(record).unwrap(),
+            )
+            .unwrap();
+        }
+        assert_eq!(
+            store
+                .events()
+                .unwrap()
+                .iter()
+                .map(|event| event.id())
+                .collect::<Vec<_>>(),
+            vec!["sess_z", "sess_a"]
+        );
     }
 
     #[test]

@@ -1,6 +1,6 @@
 [package]
 name = "turnlog"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "Lightweight local provenance recorder for agent sessions and turns"
 license = "MIT"

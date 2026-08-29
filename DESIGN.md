@@ -39,7 +39,7 @@ Canonical storage is append-only JSONL plus small JSON documents and Markdown re
     <turn-id>.diff
 ```
 
-Per-session and per-turn JSON files are canonical records. `index.jsonl` is a rebuildable derived index; `turnlog repair` reconstructs it from canonical files after corruption or interruption. Markdown files are human-readable reports. SQLite may be added later as a derived cache, not canonical storage.
+Per-session and per-turn JSON files are canonical records. `index.jsonl` is a rebuildable derived index; `turnlog repair` reconstructs it from canonical files after corruption or interruption. Read queries reconcile the index with canonical records, use canonical content when they disagree, and report incomplete results without mutating storage. Markdown files are human-readable reports. SQLite may be added later as a derived cache, not canonical storage.
 
 ## Core commands
 
@@ -135,7 +135,7 @@ Turn:
 - JSONL appends are serialized with a repository-scoped OS advisory lock and written as complete records.
 - Canonical JSON files are written atomically before index events are appended.
 - Read operations skip malformed index entries with explicit incomplete-results warnings; writes require repair first.
-- Canonical records absent from the index are reported by status and repaired deterministically.
+- Canonical records absent from the index, stale index entries, and index/canonical disagreements are reported by read queries and repaired deterministically.
 - The CLI must work in Git-only repos and non-VCS directories.
 
 ## Non-goals for v1

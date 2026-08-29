@@ -77,4 +77,11 @@ impl Event {
             Event::TurnRecorded { turn } => &turn.id,
         }
     }
+
+    pub fn created_at(&self) -> OffsetDateTime {
+        match self {
+            Event::SessionStarted { session } => session.created_at,
+            Event::TurnRecorded { turn } => turn.created_at,
+        }
+    }
 }
