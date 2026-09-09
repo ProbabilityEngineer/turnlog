@@ -2,7 +2,7 @@
 
 A lightweight, Git-compatible agent trace recorder.
 
-`turnlog` records agent sessions and turns, then links them to tickets and the current VCS state. If `jj` is available in a colocated repo, it records `jj` change/operation metadata; otherwise it falls back to Git metadata.
+`turnlog` records agent sessions and turns, then links them to tickets and the current VCS state. It uses **Git only by default**, even when `.jj/` exists. `TURNLOG_VCS=git` explicitly selects the same safe behavior. Only `TURNLOG_VCS=jj` opts into JJ-first detection and metadata collection (with Git fallback). Unset or unrecognized values never execute JJ. This applies to repository discovery, status/record metadata, and diff attachments.
 
 ## Goal
 

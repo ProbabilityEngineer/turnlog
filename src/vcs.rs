@@ -3,6 +3,11 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 fn run(cwd: &Path, cmd: &str, args: &[&str]) -> Option<String> {
+    // Git-only by default. Centralize the guard so root/detect/diff and any
+    // future JJ call cannot accidentally snapshot a colocated working copy.
+    if cmd == "jj" && std::env::var("TURNLOG_VCS").as_deref() != Ok("jj") {
+        return None;
+    }
     let out = Command::new(cmd)
         .args(args)
         .current_dir(cwd)
