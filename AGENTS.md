@@ -7,9 +7,12 @@
 - Canonical storage is append-only JSONL plus JSON snapshots and Markdown reports under `.turnlog/`.
 - Do not mutate session JSONL or Git history from turnlog commands.
 
-## Tasks
+## Work tracking
 
-- Use `clu` as the authoritative task tracker. Run `clu ready` and use `clu claim --context` before substantial work; close tasks only after validation.
+- Use `clu` as the authoritative source of project tasks and work state.
+- At the start of substantial work, run `clu ready`, then use `clu claim --context` or claim the specifically requested task; read inherited context before editing.
+- Put newly discovered work, notes, and dependencies in `clu`, not Markdown todo lists.
+- Close completed work in `clu` after validation; leave incomplete or blocked work represented there.
 
 ## Validation
 

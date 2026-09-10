@@ -19,3 +19,8 @@ dist/
 .clu/data.sqlite-wal
 .clu/data.sqlite-shm
 .clu/backups/
+
+# CLU shareable configuration and workflow templates remain tracked.
+# CLU local runtime state.
+.clu/*.sqlite*
+.clu/backups/
