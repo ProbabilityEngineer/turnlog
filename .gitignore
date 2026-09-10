@@ -9,3 +9,13 @@ dist/
 /target
 
 .turnlog/
+
+# Local agent, task, provenance, VCS, and build state
+.pi/
+.tickets/
+.turnlog/
+.jj/
+.clu/data.sqlite
+.clu/data.sqlite-wal
+.clu/data.sqlite-shm
+.clu/backups/
