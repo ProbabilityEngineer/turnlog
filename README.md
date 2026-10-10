@@ -55,6 +55,15 @@ turnlog repair
 turnlog grep "cargo test"
 ```
 
+### Status output limits
+
+Default `turnlog status` is presentation-only: at most 12 KiB, at most 20
+sample paths, bounded single-line fields, and an explicit omitted-path count.
+Use `turnlog status --full` for the previous complete text presentation.
+Canonical records and VCS data are not truncated. Status has no JSON interface;
+its default human-readable `changed files:` field now reports the total count.
+Existing `show --json` output and stored record schemas are unchanged.
+
 ## Storage
 
 `turnlog --cwd DIR` (or `-C DIR`) runs against `DIR` instead of the process current directory, which is useful when an agent process is launched from one directory while editing another repository.

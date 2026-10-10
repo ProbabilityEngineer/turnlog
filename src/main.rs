@@ -218,6 +218,8 @@ fn truncate_utf8(value: &str, max_bytes: usize) -> (&str, bool) {
 }
 
 fn bounded_field(value: &str, max_bytes: usize) -> String {
+    let value = value.replace(['\n', '\r'], " ");
+    let value = value.as_str();
     let (prefix, truncated) = truncate_utf8(value, max_bytes);
     if truncated {
         format!("{prefix}…")
@@ -326,10 +328,11 @@ fn print_status(cwd: &std::path::Path, full: bool) -> Result<()> {
     if truncated {
         let notice = "\nstatus output truncated; use `turnlog status --full` for full output\n";
         let keep = STATUS_MAX_BYTES.saturating_sub(notice.len());
-        output.truncate(keep);
-        while !output.is_char_boundary(output.len()) {
-            output.pop();
+        let mut keep = keep.min(output.len());
+        while !output.is_char_boundary(keep) {
+            keep -= 1;
         }
+        output.truncate(keep);
         output.push_str(notice);
     }
     print!("{output}");
@@ -350,6 +353,9 @@ fn append_changed_summary(lines: &mut Vec<String>, changed_files: &[String]) {
 }
 
 fn append_bounded_line(output: &mut String, line: &str) -> bool {
+    let sanitized = bounded_field(line, 256);
+    let shortened = sanitized != line;
+    let line = sanitized.as_str();
     let remaining = STATUS_MAX_BYTES.saturating_sub(output.len());
     if remaining == 0 {
         return true;
@@ -360,7 +366,7 @@ fn append_bounded_line(output: &mut String, line: &str) -> bool {
         output.push('…');
     }
     output.push('\n');
-    truncated
+    truncated || shortened
 }
 
 fn print_status_full(cwd: &std::path::Path) -> Result<()> {
