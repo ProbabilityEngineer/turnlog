@@ -104,8 +104,8 @@ fn main() -> Result<()> {
             store.set_current_session(&session.id)?;
             println!("current session: {} {}", session.id, session.goal);
         }
-        Command::Status => {
-            print_status(&cwd)?;
+        Command::Status { full } => {
+            print_status(&cwd, full)?;
         }
         Command::Log {
             session,
@@ -203,7 +203,167 @@ fn vcs_kind(v: &model::VcsInfo) -> &'static str {
     }
 }
 
-fn print_status(cwd: &std::path::Path) -> Result<()> {
+const STATUS_MAX_BYTES: usize = 12 * 1024;
+const STATUS_SAMPLE_LIMIT: usize = 20;
+
+fn truncate_utf8(value: &str, max_bytes: usize) -> (&str, bool) {
+    if value.len() <= max_bytes {
+        return (value, false);
+    }
+    let mut end = max_bytes.saturating_sub("…".len());
+    while !value.is_char_boundary(end) {
+        end = end.saturating_sub(1);
+    }
+    (&value[..end], true)
+}
+
+fn bounded_field(value: &str, max_bytes: usize) -> String {
+    let (prefix, truncated) = truncate_utf8(value, max_bytes);
+    if truncated {
+        format!("{prefix}…")
+    } else {
+        prefix.to_string()
+    }
+}
+
+fn print_status(cwd: &std::path::Path, full: bool) -> Result<()> {
+    if full {
+        return print_status_full(cwd);
+    }
+
+    let mut lines = Vec::new();
+    let mut push = |label: &str, value: String| {
+        lines.push(format!("{label}{value}"));
+    };
+    let store = Store::discover(cwd).ok();
+    push(
+        "turnlog: ",
+        if store.is_some() {
+            "initialized".into()
+        } else {
+            "not initialized".into()
+        },
+    );
+
+    if let Some(store) = &store {
+        match store.current_session() {
+            Ok(session) => push(
+                "current session: ",
+                format!(
+                    "{} ticket={} goal={}",
+                    session.id,
+                    session.ticket.as_deref().unwrap_or("none"),
+                    bounded_field(&session.goal, 256)
+                ),
+            ),
+            Err(_) => push("current session: ", "none".into()),
+        }
+        match store.latest_turn()? {
+            Some(turn) => push(
+                "last turn: ",
+                format!(
+                    "{} session={} summary={}",
+                    turn.id,
+                    turn.session,
+                    bounded_field(turn.summary.as_deref().unwrap_or(""), 256)
+                ),
+            ),
+            None => push("last turn: ", "none".into()),
+        }
+    }
+
+    let vcs = vcs::detect(cwd);
+    match &vcs {
+        model::VcsInfo::Jj {
+            jj_change,
+            jj_commit,
+            git_head,
+            git_branch,
+            dirty,
+            changed_files,
+            ..
+        } => {
+            push("vcs: ", "jj".into());
+            push(
+                "jj change: ",
+                jj_change.as_deref().unwrap_or("unknown").into(),
+            );
+            push(
+                "jj commit: ",
+                jj_commit.as_deref().unwrap_or("unknown").into(),
+            );
+            push(
+                "git branch: ",
+                git_branch.as_deref().unwrap_or("none").into(),
+            );
+            push("git head: ", git_head.as_deref().unwrap_or("none").into());
+            push("dirty: ", dirty.to_string());
+            append_changed_summary(&mut lines, changed_files);
+        }
+        model::VcsInfo::Git {
+            git_head,
+            git_branch,
+            dirty,
+            changed_files,
+        } => {
+            push("vcs: ", "git".into());
+            push(
+                "git branch: ",
+                git_branch.as_deref().unwrap_or("none").into(),
+            );
+            push("git head: ", git_head.as_deref().unwrap_or("none").into());
+            push("dirty: ", dirty.to_string());
+            append_changed_summary(&mut lines, changed_files);
+        }
+        model::VcsInfo::None => push("vcs: ", "none".into()),
+    }
+
+    let mut output = String::new();
+    let mut truncated = false;
+    for line in lines {
+        truncated |= append_bounded_line(&mut output, &line);
+    }
+    if truncated {
+        let notice = "\nstatus output truncated; use `turnlog status --full` for full output\n";
+        let keep = STATUS_MAX_BYTES.saturating_sub(notice.len());
+        output.truncate(keep);
+        while !output.is_char_boundary(output.len()) {
+            output.pop();
+        }
+        output.push_str(notice);
+    }
+    print!("{output}");
+    Ok(())
+}
+
+fn append_changed_summary(lines: &mut Vec<String>, changed_files: &[String]) {
+    lines.push(format!("changed files: {}", changed_files.len()));
+    for file in changed_files.iter().take(STATUS_SAMPLE_LIMIT) {
+        lines.push(format!("  - {}", bounded_field(file, 512)));
+    }
+    if changed_files.len() > STATUS_SAMPLE_LIMIT {
+        lines.push(format!(
+            "omitted paths: {} (use `turnlog status --full` for full output)",
+            changed_files.len() - STATUS_SAMPLE_LIMIT
+        ));
+    }
+}
+
+fn append_bounded_line(output: &mut String, line: &str) -> bool {
+    let remaining = STATUS_MAX_BYTES.saturating_sub(output.len());
+    if remaining == 0 {
+        return true;
+    }
+    let (line, truncated) = truncate_utf8(line, remaining.saturating_sub(1));
+    output.push_str(line);
+    if truncated {
+        output.push('…');
+    }
+    output.push('\n');
+    truncated
+}
+
+fn print_status_full(cwd: &std::path::Path) -> Result<()> {
     let store = Store::discover(cwd).ok();
     println!(
         "turnlog: {}",
@@ -442,5 +602,32 @@ mod tests {
         ticket_sessions.insert("sess_test".to_string());
         assert!(event_matches(&event, None, Some("TEST-1"), &ticket_sessions, None, None).unwrap());
         assert!(!event_matches(&event, None, Some("TEST-1"), &HashSet::new(), None, None).unwrap());
+    }
+
+    #[test]
+    fn bounded_status_summarizes_large_unicode_path_sets() {
+        let paths: Vec<String> = (0..30_523)
+            .map(|index| format!("研究/非常に長いファイル名-{index}.txt"))
+            .collect();
+        let mut lines = Vec::new();
+        append_changed_summary(&mut lines, &paths);
+        let mut output = String::new();
+        for line in lines {
+            append_bounded_line(&mut output, &line);
+        }
+        assert!(output.len() <= STATUS_MAX_BYTES);
+        assert!(output.is_char_boundary(output.len()));
+        assert!(output.contains("changed files: 30523"));
+        assert!(output.contains("omitted paths: 30503"));
+    }
+
+    #[test]
+    fn bounded_status_fields_are_utf8_safe() {
+        let value = "é".repeat(20_000);
+        let bounded = bounded_field(&value, 256);
+        assert!(bounded.len() <= 256);
+        assert!(bounded.is_char_boundary(bounded.len()));
+        assert!(bounded.ends_with('…'));
+        assert_eq!(truncate_utf8("hello", 20), ("hello", false));
     }
 }

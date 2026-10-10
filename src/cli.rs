@@ -44,7 +44,11 @@ pub enum Command {
     /// Set the active session
     Use { id: String },
     /// Show current turnlog and VCS status
-    Status,
+    Status {
+        /// Include every changed path instead of the bounded summary
+        #[arg(long)]
+        full: bool,
+    },
     /// List trace events
     Log {
         #[arg(long)]

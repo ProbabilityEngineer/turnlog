@@ -39,6 +39,7 @@ turnlog record --model claude-sonnet-4-5 --summary "Updated token validation" --
 turnlog record --attach-diff --summary "Record with patch snapshot"
 turnlog record --session <session-id> --summary "Explicit session record"
 turnlog status
+turnlog status --full
 turnlog --cwd /path/to/repo status
 turnlog -C /path/to/repo record --summary "Record a different repo"
 turnlog log
